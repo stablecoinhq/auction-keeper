@@ -9,6 +9,16 @@ export interface Ilk {
   value: string;
 }
 
+function unique(strs: { value: string }[]): { value: string }[] {
+  return Array.from(
+    strs.reduce((prev, curr) => {
+      return prev.add(curr.value);
+    }, new Set<string>())
+  ).map((v) => {
+    return { value: v };
+  });
+}
+
 interface UrnKey {
   ilk: Ilk;
   urnAddress: Address;
@@ -80,18 +90,18 @@ function parseRawEvent(rawEvent: string): UrnKey[] {
 
 // UrnKeyをIlk毎にグループ分けする
 function toUrns(urnKeys: UrnKey[]): UrnsByIlk[] {
-  const ilks = Array.from(
-    urnKeys.reduce((prev, curr) => {
-      return prev.add(curr.ilk.value);
-    }, new Set<string>())
+  const ilks = unique(
+    urnKeys.map((v) => {
+      return v.ilk;
+    })
   );
   const urns = ilks.reduce((prev, ilk) => {
     const addresses = urnKeys
-      .filter((urnKey) => urnKey.ilk.value === ilk)
+      .filter((urnKey) => urnKey.ilk.value === ilk.value)
       .map((u) => {
         return u.urnAddress;
       });
-    return prev.add({ ilk: { value: ilk }, urnAddresses: addresses });
+    return prev.add({ ilk: ilk, urnAddresses: unique(addresses) });
   }, new Set<UrnsByIlk>());
   return Array.from(urns);
 }

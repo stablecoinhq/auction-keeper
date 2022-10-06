@@ -4,7 +4,7 @@ import { Vat__factory } from "../types/ethers-contracts/factories/Vat__factory";
 
 import { parseEventsAndGroup, parseEventAndGroup } from "./event-parser";
 import { Dog__factory } from "../types/ethers-contracts";
-import { convert, Unit } from "./units";
+import { displayUnits, Unit } from "./units";
 import { checkUrns } from "./dog";
 
 require("dotenv").config();
@@ -47,13 +47,13 @@ async function main() {
 
   const Hole = await dog.Hole();
   const Dirt = await dog.Dirt();
-  console.log(`dog.Hole, ${convert(Hole, Unit.Rad)}`);
-  console.log(`dog.Dirt, ${convert(Dirt, Unit.Rad)}`);
+  console.log(`dog.Hole, ${displayUnits(Hole, Unit.Rad)}`);
+  console.log(`dog.Dirt, ${displayUnits(Dirt, Unit.Rad)}`);
 
   console.log("Fetching past events...");
   const eventsFilter =
     vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"]();
-  const events = await vat.queryFilter(eventsFilter, 7662016, "latest");
+  const events = await vat.queryFilter(eventsFilter, 7287536, "latest");
   const eventRawData = events.map((logNoteEvent) => {
     return logNoteEvent.data;
   });
