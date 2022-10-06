@@ -1,0 +1,12 @@
+# Versioning and metadata
+.git
+.gitignore
+.dockerignore
+.circleci
+.vscode
+cypress
+# Build dependencies
+dist
+node_modules
+coverage
+docker

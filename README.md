@@ -16,3 +16,19 @@ RPC_HOST="GethのRPC URL"
 VAT_ADDRESS="Vatコントラクトのアドレス"
 DOG_ADDRESS="DogコントラクトのアドレスÏ"
 ```
+
+## 実行
+
+**docker**
+
+ビルド
+
+```
+docker build . --target=application --tag=auction-keeper:latest
+```
+
+実行
+
+```
+docker run --rm --name=auction-keeper -v $(pwd)/.env:/app/.env auction-keeper:latest
+```

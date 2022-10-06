@@ -17,6 +17,12 @@ const envs = {
 
 console.log(envs);
 
+process.on('SIGINT', function() {
+  console.log( "\nGracefully shutting down from SIGINT (Ctrl-C)" );
+  // some other closing procedures go here
+  process.exit(0);
+});
+
 async function main() {
   const provider = new ethers.providers.JsonRpcProvider(envs.RPC_HOST);
   const vat = Vat__factory.connect(envs.VAT_ADDRESS, provider);
