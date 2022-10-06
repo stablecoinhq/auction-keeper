@@ -103,7 +103,7 @@ function canBark(
   }
 }
 
-export interface Bark {
+export interface CanBark {
   ilk: string;
   address: string;
 }
@@ -115,7 +115,7 @@ export async function checkUrns(
   Hole: BigNumber,
   Dirt: BigNumber,
   urnsByIlk: UrnsByIlk
-): Promise<Bark[]> {
+): Promise<CanBark[]> {
   const { ilk, urnAddresses } = urnsByIlk;
   const vatIlkInfo = await vat.ilks(ilk.value);
   const dogIlk = await dog.ilks(ilk.value);

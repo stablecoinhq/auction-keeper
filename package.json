@@ -7,7 +7,7 @@
   "scripts": {
     "generate-types": "typechain --target=ethers-v5 'abi/*.json'",
     "start": "ts-node ./src/index.ts",
-    "typecheck": "pnpm generate-types && tsc --noEmit"
+    "build": "tsc --build"
   },
   "devDependencies": {
     "@typechain/ethers-v5": "^10.1.0",
