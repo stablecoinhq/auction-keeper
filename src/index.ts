@@ -13,18 +13,25 @@ const envs = {
   RPC_HOST: process.env.RPC_HOST || "",
   VAT_ADDRESS: process.env.VAT_ADDRESS || "",
   DOG_ADDRESS: process.env.DOG_ADDRESS || "",
+  MNEMONICS: process.env.MNEMONICS || "",
 };
 
-console.log(envs);
-
-process.on('SIGINT', function() {
-  console.log( "\nGracefully shutting down from SIGINT (Ctrl-C)" );
+process.on("SIGINT", function () {
+  console.log("\nGracefully shutting down from SIGINT (Ctrl-C)");
   // some other closing procedures go here
   process.exit(0);
 });
 
 async function main() {
+  const signer = ethers.Wallet.fromMnemonic(envs.MNEMONICS);
   const provider = new ethers.providers.JsonRpcProvider(envs.RPC_HOST);
+  signer.connect(provider);
+  console.log({
+    RPC_HOST: envs.RPC_HOST,
+    VAT_ADDRESS: envs.VAT_ADDRESS,
+    DOG_ADDRESS: envs.DOG_ADDRESS,
+    SIGNER_ADDRESS: signer.address,
+  });
   const vat = Vat__factory.connect(envs.VAT_ADDRESS, provider);
   const dog = Dog__factory.connect(envs.DOG_ADDRESS, provider);
   const isVatLive = (await vat.live()).eq(1);
@@ -52,8 +59,11 @@ async function main() {
   });
   const urnsByIlk = parseEventsAndGroup(eventRawData);
   for (const u of urnsByIlk) {
-    const barks = await checkUrns(vat, dog, Hole, Dirt, u);
-    console.log("Unsafe vault", barks);
+    const unsafeVaults = await checkUrns(vat, dog, Hole, Dirt, u);
+    for (const { ilk, address } of unsafeVaults) {
+      console.log(`Barking at: ${ilk}, ${address}`);
+      await dog.bark(ilk, address, signer.address);
+    }
   }
 
   console.log("Start listening to ongoing events...");
@@ -63,6 +73,10 @@ async function main() {
     for (const u of urnsByIlk) {
       const unsafeVaults = await checkUrns(vat, dog, Hole, Dirt, u);
       console.log("Unsafe vaults", unsafeVaults);
+      for (const { ilk, address } of unsafeVaults) {
+        console.log(`Barking at: ${ilk}, ${address}`);
+        await dog.bark(ilk, address, signer.address);
+      }
     }
   });
 }
