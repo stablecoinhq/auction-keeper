@@ -7,14 +7,27 @@
   "scripts": {
     "generate-types": "typechain --target=ethers-v5 'abi/*.json'",
     "start": "ts-node ./src/index.ts",
-    "build": "tsc --build"
+    "build": "tsc --build",
+    "format": "prettier --write 'src/**/*.{js,ts,json}'",
+    "eslint": "eslint src/**/*.ts",
+    "eslint:fix": "eslint src/**/*.ts --fix",
+    "lint": "npm-run-all eslint check-types"
   },
   "devDependencies": {
     "@typechain/ethers-v5": "^10.1.0",
     "@types/bn.js": "^5.1.0",
+    "@typescript-eslint/eslint-plugin": "^5.39.0",
+    "@typescript-eslint/parser": "^5.39.0",
+    "eslint": "^8.24.0",
+    "eslint-config-prettier": "8.5.0",
+    "eslint-config-standard-with-typescript": "^23.0.0",
+    "eslint-plugin-import": "^2.26.0",
+    "eslint-plugin-n": "^15.3.0",
+    "eslint-plugin-promise": "^6.0.1",
+    "prettier": "2.7.1",
     "ts-node": "^10.7.0",
     "typechain": "^8.1.0",
-    "typescript": "^4.6"
+    "typescript": "^4.8.4"
   },
   "dependencies": {
     "@ethersproject/abi": "^5.1.3",

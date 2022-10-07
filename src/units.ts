@@ -15,7 +15,7 @@ export const constants = {
   RAD: BigNumber.from(10).pow(Unit.Rad),
 };
 
-export function displayUnits(num: BigNumber, unit: Unit): String {
+export function displayUnits(num: BigNumber, unit: Unit): string {
   const DECIMAL_PLACES = 10 ** 3;
 
   function toStandard(num: BigNumber, divBy: BigNumber): Number {

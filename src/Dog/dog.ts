@@ -6,7 +6,6 @@ import {
 } from "../../types/ethers-contracts/index";
 import { BigNumber, constants } from "ethers";
 import { displayUnits, Unit } from "../units";
-import { UrnsByIlk } from "./event-parser";
 import { ethers } from "ethers";
 import { parseEventsAndGroup, parseEventAndGroup } from "./event-parser";
 
