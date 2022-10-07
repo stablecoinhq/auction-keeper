@@ -1,10 +1,13 @@
-import { Dog as DogContract, Vat as VatContract } from "../ethers-contracts";
+import {
+  Dog as DogContract,
+  Vat as VatContract,
+  Vat__factory,
+  Dog__factory,
+} from "../../types/ethers-contracts/index";
 import { BigNumber, constants } from "ethers";
 import { displayUnits, Unit, constants as unitConstants } from "../units";
 import { UrnsByIlk } from "./event-parser";
 import { ethers } from "ethers";
-import { Vat__factory } from "../ethers-contracts";
-import { Dog__factory } from "../ethers-contracts";
 import { parseEventsAndGroup, parseEventAndGroup } from "./event-parser";
 
 interface VatIlkInfo {
