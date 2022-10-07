@@ -9,7 +9,7 @@ const envs = {
   RPC_HOST: process.env.RPC_HOST!,
   VAT_ADDRESS: process.env.VAT_ADDRESS!,
   DOG_ADDRESS: process.env.DOG_ADDRESS!,
-  MNEMONICS: process.env.MNEMONICS!,
+  MNEMONIC: process.env.MNEMONIC!,
   CLIP_ADDRESS: process.env.CLIP_ADDRESS!,
 };
 
@@ -21,9 +21,9 @@ process.on("SIGINT", function () {
 
 async function main() {
   // singletonにする
-  const signer = ethers.Wallet.fromMnemonic(envs.MNEMONICS);
   const provider = new ethers.providers.JsonRpcProvider(envs.RPC_HOST);
-
+  const signer = ethers.Wallet.fromMnemonic(envs.MNEMONIC).connect(provider);
+  
   console.log({
     RPC_HOST: envs.RPC_HOST,
     VAT_ADDRESS: envs.VAT_ADDRESS,

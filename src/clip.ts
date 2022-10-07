@@ -45,16 +45,13 @@ export interface AuctionInfo {
 export default class Clip {
   readonly clip: ClipContract;
   private signer: ethers.Wallet;
-  private provider: ethers.providers.JsonRpcProvider;
   signerAddress: string;
 
   constructor(args: ClipConfig) {
-    const { clipAddress, signer, provider } = args;
+    const { clipAddress, signer } = args;
     this.signer = signer;
-    this.provider = provider;
-    this.signer.connect(this.provider);
     this.signerAddress = this.signer.address;
-    this.clip = Clip__factory.connect(clipAddress, this.provider);
+    this.clip = Clip__factory.connect(clipAddress, this.signer);
   }
 
   async start() {
@@ -65,7 +62,7 @@ export default class Clip {
       return;
     }
     const abacusAddress = await this.clip.calc();
-    const abacus = Abacus__factory.connect(abacusAddress, this.provider);
+    const abacus = Abacus__factory.connect(abacusAddress, this.signer);
 
     const activeAuctionIds = await this.clip.list();
     const activeAuctions = await activeAuctionIds.reduce(

@@ -30,12 +30,11 @@ export default class Dog {
   Hole: BigNumber = BigNumber.from(0);
 
   constructor(config: DogConfig) {
-    const { vatAddress, dogAddress, signer, provider } = config;
+    const { vatAddress, dogAddress, signer } = config;
     this.signer = signer;
-    this.signer.connect(provider);
     this.signerAddress = this.signer.address;
-    this.vat = Vat__factory.connect(vatAddress, provider);
-    this.dog = Dog__factory.connect(dogAddress, provider);
+    this.vat = Vat__factory.connect(vatAddress, this.signer);
+    this.dog = Dog__factory.connect(dogAddress, this.signer);
   }
 
   async start(this: Dog): Promise<void> {
