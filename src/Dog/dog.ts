@@ -5,7 +5,7 @@ import {
   Dog__factory,
 } from "../../types/ethers-contracts/index";
 import { BigNumber, constants } from "ethers";
-import { displayUnits, Unit } from "../units";
+import { displayUnits, Unit, constants as unitContants } from "../units";
 import { ethers } from "ethers";
 import { parseEventsAndGroup, parseEventAndGroup } from "./event-parser";
 
@@ -93,7 +93,7 @@ export default class Dog {
     const dogIlk = await this.dog.ilks(ilk);
     displayVatIlkInfo(vatIlkInfo);
     displayDogIlkInfo(dogIlk);
-    
+
     const isLiquidationLimitSafe =
       this.Hole.gt(this.Dirt) && dogIlk.hole.gt(dogIlk.dirt);
     // オークションがDAI上限に達している
@@ -105,7 +105,7 @@ export default class Dog {
     const barks = await Promise.all(
       urnAddresses.map(async (urnAddress) => {
         const urnInfo = await this.vat.urns(ilk, urnAddress);
-        displayUrnInfo(urnAddress, urnInfo);
+        displayUrnInfo(urnAddress, vatIlkInfo, urnInfo);
         return {
           address: urnAddress,
           canBark: Dog.canBark(
@@ -187,13 +187,15 @@ interface UrnInfo {
   ink: BigNumber;
 }
 
-function displayVatIlkInfo(vatInfo: {
+interface IlkInfo {
   Art: BigNumber;
   rate: BigNumber;
   spot: BigNumber;
   dust: BigNumber;
-}) {
-  const { Art, rate, spot, dust } = vatInfo;
+}
+
+function displayVatIlkInfo(ilkInfo: IlkInfo) {
+  const { Art, rate, spot, dust } = ilkInfo;
   const normalized = {
     Art: displayUnits(Art, Unit.Wad),
     rate: displayUnits(rate, Unit.Ray),
@@ -214,12 +216,26 @@ function displayDogIlkInfo(dogInfo: DogIlkInfo) {
   console.log(normalized);
 }
 
-function displayUrnInfo(urnAddress: string, urnInfo: UrnInfo) {
+function displayUrnInfo(
+  urnAddress: string,
+  ilkInfo: IlkInfo,
+  urnInfo: UrnInfo
+) {
   const { art, ink } = urnInfo;
+  const { rate, spot } = ilkInfo;
+  // 現在の負債(DAI)
+  const debt = art.mul(rate).div(unitContants.WAD).div(unitContants.RAY)
+  // 許容可能な負債(DAI)
+  const maximumAllowedDebt = ink.mul(spot).div(unitContants.WAD).div(unitContants.RAY);
+  // 許容可能な負債 - 現在の負債 = 精算までのDAI
+  const untilCollaterization = maximumAllowedDebt.sub(debt);
   const normalized = {
     address: urnAddress,
     ink: displayUnits(ink, Unit.Wad),
     art: displayUnits(art, Unit.Wad),
+    debt: debt.toString(),
+    maximumAllowedDebt: maximumAllowedDebt.toString(),
+    untilLiquidation: untilCollaterization.toString(),
   };
   console.log(normalized);
 }
