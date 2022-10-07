@@ -5,7 +5,8 @@ FROM node:${NODE_VERSION}-buster-slim AS builder
 WORKDIR "/app"
 COPY package.json .
 COPY package-lock.json .
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 COPY . .
 RUN npm run build
 RUN npm prune --production
