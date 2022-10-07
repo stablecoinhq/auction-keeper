@@ -28,6 +28,7 @@ async function main() {
     RPC_HOST: envs.RPC_HOST,
     VAT_ADDRESS: envs.VAT_ADDRESS,
     DOG_ADDRESS: envs.DOG_ADDRESS,
+    CLIP_ADDRESS: envs.CLIP_ADDRESS,
     SIGNER_ADDRESS: signer.address,
   });
   const dog = new Dog({
@@ -36,6 +37,7 @@ async function main() {
     signer: signer,
     provider: provider,
   });
+  // 複数のClipを監視できるようにする
   const clip = new Clip({
     clipAddress: envs.CLIP_ADDRESS,
     signer: signer,
