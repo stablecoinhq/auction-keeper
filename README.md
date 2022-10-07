@@ -12,22 +12,24 @@ MakerDAOのオークションに関する操作を自動化するソフトウェ
 ディレクトリのrootに以下の`.envs`ファイルを用意する
 
 ```
-RPC_HOST="GethのRPC URL"
-VAT_ADDRESS="Vatコントラクトのアドレス"
-DOG_ADDRESS="DogコントラクトのアドレスÏ"
+RPC_HOST="JSON-RPCのURL"
+VAT_ADDRESS="Vatコントラクトアドレス"
+DOG_ADDRESS="Dogコントラクトアドレス"
+CLIP_ADDRESS="Clipコントラクトアドレス"
+MNEMONIC="ニーモニック"
 ```
 
 ## 実行
 
-**docker**
+### docker
 
-ビルド
+1. ビルド
 
 ```
 docker build . --target=application --tag=auction-keeper:latest
 ```
 
-実行
+2. 実行
 
 ```
 docker run --rm --name=auction-keeper -v $(pwd)/.env:/app/.env auction-keeper:latest
