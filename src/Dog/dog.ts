@@ -10,62 +10,6 @@ import { UrnsByIlk } from "./event-parser";
 import { ethers } from "ethers";
 import { parseEventsAndGroup, parseEventAndGroup } from "./event-parser";
 
-interface VatIlkInfo {
-  Art: BigNumber;
-  rate: BigNumber;
-  spot: BigNumber;
-  dust: BigNumber;
-}
-
-interface DogIlkInfo {
-  clip: string;
-  chop: BigNumber;
-  hole: BigNumber;
-  dirt: BigNumber;
-}
-
-interface UrnInfo {
-  art: BigNumber;
-  ink: BigNumber;
-}
-
-function displayVatIlkInfo(vatInfo: {
-  Art: BigNumber;
-  rate: BigNumber;
-  spot: BigNumber;
-  dust: BigNumber;
-}) {
-  const { Art, rate, spot, dust } = vatInfo;
-  const normalized = {
-    Art: displayUnits(Art, Unit.Wad),
-    rate: displayUnits(rate, Unit.Ray),
-    spot: displayUnits(spot, Unit.Ray),
-    dust: displayUnits(dust, Unit.Rad),
-  };
-  console.log(normalized);
-}
-
-function displayDogIlkInfo(dogInfo: DogIlkInfo) {
-  const { clip, chop, hole, dirt } = dogInfo;
-  const normalized = {
-    clip: clip,
-    chop: displayUnits(chop, Unit.Wad),
-    hole: displayUnits(hole, Unit.Rad),
-    dirt: displayUnits(dirt, Unit.Rad),
-  };
-  console.log(normalized);
-}
-
-function displayUrnInfo(urnAddress: string, urnInfo: UrnInfo) {
-  const { art, ink } = urnInfo;
-  const normalized = {
-    address: urnAddress,
-    ink: displayUnits(ink, Unit.Wad),
-    art: displayUnits(art, Unit.Wad),
-  };
-  console.log(normalized);
-}
-
 export interface CanBark {
   ilk: string;
   address: string;
@@ -220,4 +164,60 @@ export default class Dog {
       return true;
     }
   }
+}
+
+interface VatIlkInfo {
+  Art: BigNumber;
+  rate: BigNumber;
+  spot: BigNumber;
+  dust: BigNumber;
+}
+
+interface DogIlkInfo {
+  clip: string;
+  chop: BigNumber;
+  hole: BigNumber;
+  dirt: BigNumber;
+}
+
+interface UrnInfo {
+  art: BigNumber;
+  ink: BigNumber;
+}
+
+function displayVatIlkInfo(vatInfo: {
+  Art: BigNumber;
+  rate: BigNumber;
+  spot: BigNumber;
+  dust: BigNumber;
+}) {
+  const { Art, rate, spot, dust } = vatInfo;
+  const normalized = {
+    Art: displayUnits(Art, Unit.Wad),
+    rate: displayUnits(rate, Unit.Ray),
+    spot: displayUnits(spot, Unit.Ray),
+    dust: displayUnits(dust, Unit.Rad),
+  };
+  console.log(normalized);
+}
+
+function displayDogIlkInfo(dogInfo: DogIlkInfo) {
+  const { clip, chop, hole, dirt } = dogInfo;
+  const normalized = {
+    clip: clip,
+    chop: displayUnits(chop, Unit.Wad),
+    hole: displayUnits(hole, Unit.Rad),
+    dirt: displayUnits(dirt, Unit.Rad),
+  };
+  console.log(normalized);
+}
+
+function displayUrnInfo(urnAddress: string, urnInfo: UrnInfo) {
+  const { art, ink } = urnInfo;
+  const normalized = {
+    address: urnAddress,
+    ink: displayUnits(ink, Unit.Wad),
+    art: displayUnits(art, Unit.Wad),
+  };
+  console.log(normalized);
 }
