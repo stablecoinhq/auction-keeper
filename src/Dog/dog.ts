@@ -17,8 +17,8 @@ export interface CanBark {
 export interface DogConfig {
   vatAddress: string;
   dogAddress: string;
-  rcpHost: string;
-  mnemonic: string;
+  signer: ethers.Wallet;
+  provider: ethers.providers.JsonRpcProvider;
 }
 
 export default class Dog {
@@ -30,9 +30,8 @@ export default class Dog {
   Hole: BigNumber = BigNumber.from(0);
 
   constructor(config: DogConfig) {
-    const { vatAddress, dogAddress, rcpHost, mnemonic } = config;
-    this.signer = ethers.Wallet.fromMnemonic(mnemonic);
-    const provider = new ethers.providers.JsonRpcProvider(rcpHost);
+    const { vatAddress, dogAddress, signer, provider } = config;
+    this.signer = signer;
     this.signer.connect(provider);
     this.signerAddress = this.signer.address;
     this.vat = Vat__factory.connect(vatAddress, provider);
@@ -50,10 +49,8 @@ export default class Dog {
     if (!isDogLive) {
       return console.log(`Dog ${this.dog.address} is not live`);
     }
-    this.Dirt = await this.dog.Hole();
-    this.Hole = await this.dog.Dirt();
-    console.log(`dog.Hole, ${displayUnits(this.Hole, Unit.Rad)}`);
-    console.log(`dog.Dirt, ${displayUnits(this.Dirt, Unit.Rad)}`);
+    this.Dirt = await this.dog.Dirt();
+    this.Hole = await this.dog.Hole();
     console.log("Fetching past events...");
     const eventsFilter =
       this.vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"]();
@@ -97,7 +94,7 @@ export default class Dog {
     const dogIlk = await this.dog.ilks(ilk);
     displayVatIlkInfo(vatIlkInfo);
     displayDogIlkInfo(dogIlk);
-
+    
     const isLiquidationLimitSafe =
       this.Hole.gt(this.Dirt) && dogIlk.hole.gt(dogIlk.dirt);
     // オークションがDAI上限に達している

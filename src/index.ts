@@ -1,6 +1,7 @@
 import { ethers } from "ethers";
 
 import Dog from "./Dog/dog";
+import Clip from "./clip";
 
 require("dotenv").config();
 
@@ -9,6 +10,7 @@ const envs = {
   VAT_ADDRESS: process.env.VAT_ADDRESS!,
   DOG_ADDRESS: process.env.DOG_ADDRESS!,
   MNEMONICS: process.env.MNEMONICS!,
+  CLIP_ADDRESS: process.env.CLIP_ADDRESS!,
 };
 
 process.on("SIGINT", function () {
@@ -18,9 +20,10 @@ process.on("SIGINT", function () {
 });
 
 async function main() {
+  // singletonにする
   const signer = ethers.Wallet.fromMnemonic(envs.MNEMONICS);
   const provider = new ethers.providers.JsonRpcProvider(envs.RPC_HOST);
-  signer.connect(provider);
+
   console.log({
     RPC_HOST: envs.RPC_HOST,
     VAT_ADDRESS: envs.VAT_ADDRESS,
@@ -30,10 +33,15 @@ async function main() {
   const dog = new Dog({
     vatAddress: envs.VAT_ADDRESS,
     dogAddress: envs.DOG_ADDRESS,
-    rcpHost: envs.RPC_HOST,
-    mnemonic: envs.MNEMONICS,
+    signer: signer,
+    provider: provider,
   });
-  dog.start();
+  const clip = new Clip({
+    clipAddress: envs.CLIP_ADDRESS,
+    signer: signer,
+    provider: provider,
+  });
+  Promise.all([dog.start(), clip.start()]);
 }
 
 main().catch((e) => {
