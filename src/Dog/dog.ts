@@ -5,7 +5,7 @@ import {
   Dog__factory,
 } from "../../types/ethers-contracts/index";
 import { BigNumber, constants } from "ethers";
-import { displayUnits, Unit, constants as unitConstants } from "../units";
+import { displayUnits, Unit } from "../units";
 import { UrnsByIlk } from "./event-parser";
 import { ethers } from "ethers";
 import { parseEventsAndGroup, parseEventAndGroup } from "./event-parser";
@@ -26,6 +26,7 @@ export default class Dog {
   readonly vat: VatContract;
   readonly dog: DogContract;
   private signer: ethers.Wallet;
+  signerAddress: string;
   Dirt: BigNumber = BigNumber.from(0);
   Hole: BigNumber = BigNumber.from(0);
 
@@ -34,13 +35,12 @@ export default class Dog {
     this.signer = ethers.Wallet.fromMnemonic(mnemonic);
     const provider = new ethers.providers.JsonRpcProvider(rcpHost);
     this.signer.connect(provider);
+    this.signerAddress = this.signer.address;
     this.vat = Vat__factory.connect(vatAddress, provider);
     this.dog = Dog__factory.connect(dogAddress, provider);
   }
 
-  async start(): Promise<void> {
-    this.Dirt = await this.dog.Hole();
-    this.Hole = await this.dog.Dirt();
+  async start(this: Dog): Promise<void> {
     const isVatLive = (await this.vat.live()).eq(1);
     const isDogLive = (await this.dog.live()).eq(1);
 
@@ -51,10 +51,10 @@ export default class Dog {
     if (!isDogLive) {
       return console.log(`Dog ${this.dog.address} is not live`);
     }
-    const Hole = await this.dog.Hole();
-    const Dirt = await this.dog.Dirt();
-    console.log(`dog.Hole, ${displayUnits(Hole, Unit.Rad)}`);
-    console.log(`dog.Dirt, ${displayUnits(Dirt, Unit.Rad)}`);
+    this.Dirt = await this.dog.Hole();
+    this.Hole = await this.dog.Dirt();
+    console.log(`dog.Hole, ${displayUnits(this.Hole, Unit.Rad)}`);
+    console.log(`dog.Dirt, ${displayUnits(this.Dirt, Unit.Rad)}`);
     console.log("Fetching past events...");
     const eventsFilter =
       this.vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"]();
@@ -63,8 +63,10 @@ export default class Dog {
       return logNoteEvent.data;
     });
     const urnsByIlk = parseEventsAndGroup(eventRawData);
-    for (const u of urnsByIlk) {
-      const unsafeVaults = await this._checkUrns(u);
+    for (const [ilk, urnAddresses] of urnsByIlk.entries()) {
+      console.log(`Ilk: ${ilk}`);
+      const addrs = Array.from(urnAddresses);
+      const unsafeVaults = await this._checkUrns(ilk, addrs);
       for (const { ilk, address } of unsafeVaults) {
         console.log(`Barking at: ${ilk}, ${address}`);
         await this.dog.bark(ilk, address, this.signer.address);
@@ -75,8 +77,9 @@ export default class Dog {
     this.vat.on(eventsFilter, async (...args) => {
       const [, , , , , logNoteEvent] = args;
       const urnsByIlk = parseEventAndGroup(logNoteEvent.address);
-      for (const u of urnsByIlk) {
-        const unsafeVaults = await this._checkUrns(u);
+      for (const [ilk, urnAddresses] of urnsByIlk.entries()) {
+        const addrs = Array.from(urnAddresses);
+        const unsafeVaults = await this._checkUrns(ilk, addrs);
         console.log("Unsafe vaults", unsafeVaults);
         for (const { ilk, address } of unsafeVaults) {
           console.log(`Barking at: ${ilk}, ${address}`);
@@ -86,10 +89,13 @@ export default class Dog {
     });
   }
 
-  private async _checkUrns(urnsByIlk: UrnsByIlk): Promise<CanBark[]> {
-    const { ilk, urnAddresses } = urnsByIlk;
-    const vatIlkInfo = await this.vat.ilks(ilk.value);
-    const dogIlk = await this.dog.ilks(ilk.value);
+  private async _checkUrns(
+    this: Dog,
+    ilk: string,
+    urnAddresses: string[]
+  ): Promise<CanBark[]> {
+    const vatIlkInfo = await this.vat.ilks(ilk);
+    const dogIlk = await this.dog.ilks(ilk);
     displayVatIlkInfo(vatIlkInfo);
     displayDogIlkInfo(dogIlk);
 
@@ -97,15 +103,16 @@ export default class Dog {
       this.Hole.gt(this.Dirt) && dogIlk.hole.gt(dogIlk.dirt);
     // オークションがDAI上限に達している
     if (!isLiquidationLimitSafe) {
+      console.log(`Auction has reached it's capacity for ${ilk}`);
       return [];
     }
 
     const barks = await Promise.all(
       urnAddresses.map(async (urnAddress) => {
-        const urnInfo = await this.vat.urns(ilk.value, urnAddress.value);
-        displayUrnInfo(urnAddress.value, urnInfo);
+        const urnInfo = await this.vat.urns(ilk, urnAddress);
+        displayUrnInfo(urnAddress, urnInfo);
         return {
-          address: urnAddress.value,
+          address: urnAddress,
           canBark: Dog.canBark(
             this.Hole,
             this.Dirt,
@@ -120,7 +127,7 @@ export default class Dog {
     return barks
       .filter((v) => v.canBark)
       .map((v) => {
-        return { ilk: ilk.value, address: v.address };
+        return { ilk: ilk, address: v.address };
       });
   }
 
@@ -139,7 +146,7 @@ export default class Dog {
       ? Hole.sub(Dirt)
       : hole.sub(dirt);
     // roomを正規化
-    const normalizedRoom = room.div(unitConstants.WAD).div(rate).div(chop);
+    const normalizedRoom = room.div(Unit.Wad).div(rate).div(chop);
     const dart = art.lte(normalizedRoom) ? art : normalizedRoom;
     // Vaultの金額が少額
     const isDust = dart.mul(rate).lt(dust);

@@ -1,33 +1,16 @@
 /* Vat.solのUrn操作に関するイベントを解析するライブラリ
  */
 
-export interface Address {
-  value: string;
-}
+export type Address = string;
 
-export interface Ilk {
-  value: string;
-}
-
-function unique(strs: { value: string }[]): { value: string }[] {
-  return Array.from(
-    strs.reduce((prev, curr) => {
-      return prev.add(curr.value);
-    }, new Set<string>())
-  ).map((v) => {
-    return { value: v };
-  });
-}
+export type Ilk = string;
 
 interface UrnKey {
   ilk: Ilk;
   urnAddress: Address;
 }
 
-export interface UrnsByIlk {
-  ilk: Ilk;
-  urnAddresses: Address[];
-}
+export type UrnsByIlk = Map<string, Set<string>>;
 
 const ONE_BYTE_IN_HEX = 64;
 
@@ -42,12 +25,44 @@ function toHex(data: string): string {
 
 // 与えられたデータをilkに整形する
 function toIlk(data: string): Ilk {
-  return { value: toHex(data) };
+  return toHex(data);
 }
 
 // 与えられたデータをアドレスに整形する
 function toAddress(data: string): Address {
-  return { value: toHex(data.slice(24)) };
+  return toHex(data.slice(24));
+}
+
+function parseRawEventMap(rawEvent: string, urns: UrnsByIlk): UrnsByIlk {
+  const functionSignature = rawEvent
+    .slice(2) // 0x
+    .slice(ONE_BYTE_IN_HEX * 2) // 最初の64バイトは無視
+    .slice(0, 8); // これが関数シグネチャ
+
+  const context = rawEvent.slice(2).slice(ONE_BYTE_IN_HEX * 2 + 8);
+  // イベントの第一引数は必ずIlk
+  const ilk = toIlk(context.slice(0, ONE_BYTE_IN_HEX));
+  const addrs = urns.get(ilk) || new Set();
+  if (functionSignature === FUNCTION_SIGNATURES.FROB) {
+    const urnAddress = toAddress(
+      context.slice(ONE_BYTE_IN_HEX, ONE_BYTE_IN_HEX * 2)
+    );
+    return urns.set(ilk, addrs.add(urnAddress));
+  } else if (functionSignature === FUNCTION_SIGNATURES.FORK) {
+    const sourceAddress = toAddress(
+      context.slice(ONE_BYTE_IN_HEX, ONE_BYTE_IN_HEX * 2)
+    );
+    const destinationAddress = toAddress(
+      context.slice(ONE_BYTE_IN_HEX * 2, ONE_BYTE_IN_HEX * 3)
+    );
+    if (sourceAddress === destinationAddress) {
+      return urns.set(ilk, addrs.add(sourceAddress));
+    } else {
+      return urns.set(ilk, addrs.add(sourceAddress).add(destinationAddress));
+    }
+  } else {
+    return urns;
+  }
 }
 
 function parseRawEvent(rawEvent: string): UrnKey[] {
@@ -88,24 +103,6 @@ function parseRawEvent(rawEvent: string): UrnKey[] {
   }
 }
 
-// UrnKeyをIlk毎にグループ分けする
-function toUrns(urnKeys: UrnKey[]): UrnsByIlk[] {
-  const ilks = unique(
-    urnKeys.map((v) => {
-      return v.ilk;
-    })
-  );
-  const urns = ilks.reduce((prev, ilk) => {
-    const addresses = urnKeys
-      .filter((urnKey) => urnKey.ilk.value === ilk.value)
-      .map((u) => {
-        return u.urnAddress;
-      });
-    return prev.add({ ilk: ilk, urnAddresses: unique(addresses) });
-  }, new Set<UrnsByIlk>());
-  return Array.from(urns);
-}
-
 // イベントを解析する(テスト用)
 export function parseEvents(rawEvents: string[]): UrnKey[] {
   return rawEvents
@@ -115,19 +112,17 @@ export function parseEvents(rawEvents: string[]): UrnKey[] {
     .flat();
 }
 
-// UrnをIlk毎にまとめる
-export function parseEventAndGroup(rawEvent: string): UrnsByIlk[] {
+// イベントを解析し、UrnをIlk毎にまとめる
+export function parseEventAndGroup(rawEvent: string): UrnsByIlk {
   return parseEventsAndGroup([rawEvent]);
 }
 
-// イベントを解析し、Ilk毎にまとめる
-export function parseEventsAndGroup(rawEvents: string[]): UrnsByIlk[] {
+// イベントを解析し、UrnをIlk毎にまとめる
+export function parseEventsAndGroup(rawEvents: string[]): UrnsByIlk {
   const urns = rawEvents.reduce((prev, rawEvent) => {
-    const urns = parseRawEvent(rawEvent);
-    urns.forEach((urn) => prev.add(urn));
-    return prev;
-  }, new Set<UrnKey>());
-  return toUrns(Array.from(urns));
+    return parseRawEventMap(rawEvent, prev);
+  }, new Map() as UrnsByIlk);
+  return urns;
 }
 
 const FROB_SAMPLE =
