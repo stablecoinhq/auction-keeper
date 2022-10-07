@@ -2,7 +2,7 @@ import { ethers } from "ethers";
 import {
   parseEventAndGroup,
   parseEventsAndGroup,
-} from "../src/Dog/event-parser";
+} from "../../src/Dog/event-parser";
 
 describe("event-parser", () => {
   // Frobメッセージをパースできる
@@ -60,9 +60,9 @@ describe("event-parser", () => {
     const result = parseEventsAndGroup(msgs);
     expect(result.size).toBe(1);
     const addresses = Array.from(result.values()).reduce((prev, curr) => {
-        return prev.concat(Array.from(curr));
-    }, [] as string[])
-    expect(addresses.length).toBe(10)
+      return prev.concat(Array.from(curr));
+    }, [] as string[]);
+    expect(addresses.length).toBe(10);
   });
   // アドレスが同じでもilkが異なる場合には別々にパースするÏ
   test("Should record if ilk is different", () => {
