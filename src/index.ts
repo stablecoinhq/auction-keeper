@@ -8,7 +8,9 @@ const ENV_PATH = process.env.ENV_PATH ? process.env.ENV_PATH : ".env";
 console.log(ENV_PATH);
 require("dotenv").config({ path: ENV_PATH });
 
-const addresses = JSON.parse(process.env.ADDRESSES ? process.env.ADDRESSES : "[]");
+const addresses = JSON.parse(
+  process.env.ADDRESSES ? process.env.ADDRESSES : "[]"
+);
 console.log(addresses);
 const envs = {
   RPC_HOST: process.env.RPC_HOST!,
@@ -17,7 +19,10 @@ const envs = {
   MNEMONIC: process.env.MNEMONIC!,
   CLIP_ADDRESS: process.env.CLIP_ADDRESS!,
   FROM_BLOCK: parseInt(process.env.FROM_BLOCK!),
-  ADDRESSES: addresses
+  TO_BLOCK: (process.env.TO_BLOCK
+    ? parseInt(process.env.TO_BLOCK)
+    : "latest") as number | "latest",
+  ADDRESSES: addresses,
 };
 
 process.on("SIGINT", function () {
@@ -30,7 +35,7 @@ async function main() {
   // singletonにする
   const provider = new ethers.providers.JsonRpcProvider(envs.RPC_HOST);
   const signer = ethers.Wallet.fromMnemonic(envs.MNEMONIC).connect(provider);
-  
+
   console.log({
     RPC_HOST: envs.RPC_HOST,
     DOG_ADDRESS: envs.DOG_ADDRESS,
@@ -43,6 +48,7 @@ async function main() {
     signer: signer,
     provider: provider,
     fromBlock: envs.FROM_BLOCK,
+    toBlock: envs.TO_BLOCK,
   });
   dog.start();
   // // 複数のClipを監視できるようにする

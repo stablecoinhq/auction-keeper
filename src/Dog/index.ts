@@ -24,18 +24,18 @@ const functionSignatures = [fork, frob];
 const voidAddress = "0x0000000000000000000000000000000000000000";
 
 // Split
-const SPLIT_BY = 100000;
+const SPLIT_BY = 10000;
 
 // ブロックを一定数分割する
 // 過去のイベントをまとめて取得しようとすると失敗するため
 function splitBlocks(
   from: number,
   latest: number
-): { from: number; to: number | "latest" }[] {
-  let ls: { from: number; to: number | "latest" }[] = [];
+): { from: number; to: number }[] {
+  let ls: { from: number; to: number }[] = [];
   for (let i = from; i <= latest; i += SPLIT_BY) {
     const from = i;
-    const to = i + SPLIT_BY >= latest ? "latest" : i + SPLIT_BY;
+    const to = i + SPLIT_BY >= latest ? latest : i + SPLIT_BY;
     ls.push({ from, to });
   }
   return ls;
@@ -51,6 +51,7 @@ export interface DogConfig {
   signer: ethers.Wallet;
   provider: ethers.providers.JsonRpcProvider;
   fromBlock: number;
+  toBlock: number | "latest";
   addresses: string[];
 }
 
@@ -58,6 +59,7 @@ export default class Dog {
   readonly vatContract: Promise<VatContract>;
   readonly dog: DogContract;
   readonly fromBlock: number;
+  readonly toBlock: number | "latest";
   readonly addresses: string[];
   private signer: ethers.Wallet;
   signerAddress: string;
@@ -65,12 +67,12 @@ export default class Dog {
   Hole: BigNumber = BigNumber.from(0);
 
   constructor(config: DogConfig) {
-    const { dogAddress, signer, fromBlock, addresses } = config;
+    const { dogAddress, signer, fromBlock, toBlock, addresses } = config;
     this.addresses = addresses;
     this.signer = signer;
     this.signerAddress = this.signer.address;
     this.fromBlock = fromBlock;
-    // this.vat = Vat__factory.connect(vatAddress, this.signer);
+    this.toBlock = toBlock;
     this.dog = Dog__factory.connect(dogAddress, this.signer);
     this.vatContract = this.dog
       .vat()
@@ -93,7 +95,10 @@ export default class Dog {
     this.Dirt = await this.dog.Dirt();
     this.Hole = await this.dog.Hole();
     console.log("Fetching past events...");
-    const latestBlock = await this.signer.provider.getBlockNumber();
+    const latestBlock =
+      this.toBlock === "latest"
+        ? await this.signer.provider.getBlockNumber()
+        : this.toBlock;
     const bunch = splitBlocks(this.fromBlock, latestBlock);
     console.log(bunch);
 
@@ -112,40 +117,49 @@ export default class Dog {
 
     console.log(urnsByIlk);
 
-    const unsafeVaults = await Promise.all(
+    const barkResult = await Promise.all(
       Array.from(urnsByIlk.entries()).map(async ([ilk, urnAddresses]) => {
         const addrs = Array.from(urnAddresses);
         const unsafeVaults = await this._checkUrns(ilk, addrs);
-        for (const { ilk, address } of unsafeVaults) {
+        const barkResult = unsafeVaults.reduce(async (prev, unsafeVault) => {
+          const result = await prev;
+          const { ilk, address } = unsafeVault;
           console.log(`Barking at: ${ilk}, ${address}`);
           await this.dog.bark(ilk, address, this.signer.address);
-        }
-        return unsafeVaults;
+          return [...result, unsafeVault];
+        }, Promise.resolve([]) as Promise<CanBark[]>);
+        return barkResult;
       })
     );
 
-    console.log(unsafeVaults.flat());
+    const r = barkResult.flat();
 
-    console.log("Start listening to ongoing events...");
-    await Promise.all(
-      functionSignatures.map(async (sig) => {
-        const eventFilter =
-          vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](sig);
-        vat.on(eventFilter, async (...args) => {
-          const [, , , , , logNoteEvent] = args;
-          const urnsByIlk = parseEventAndGroup(logNoteEvent.address);
-          for (const [ilk, urnAddresses] of urnsByIlk.entries()) {
-            const addrs = Array.from(urnAddresses);
-            const unsafeVaults = await this._checkUrns(ilk, addrs);
-            console.log("Unsafe vaults", unsafeVaults);
-            for (const { ilk, address } of unsafeVaults) {
-              console.log(`Barking at: ${ilk}, ${address}`);
-              await this.dog.bark(ilk, address, this.signer.address);
+    r.forEach((v) => {
+      console.log(v);
+    });
+
+    if (this.toBlock === "latest") {
+      console.log("Start listening to ongoing events...");
+      await Promise.all(
+        functionSignatures.map(async (sig) => {
+          const eventFilter =
+            vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](sig);
+          vat.on(eventFilter, async (...args) => {
+            const [, , , , , logNoteEvent] = args;
+            const urnsByIlk = parseEventAndGroup(logNoteEvent.address);
+            for (const [ilk, urnAddresses] of urnsByIlk.entries()) {
+              const addrs = Array.from(urnAddresses);
+              const unsafeVaults = await this._checkUrns(ilk, addrs);
+              console.log("Unsafe vaults", unsafeVaults);
+              for (const { ilk, address } of unsafeVaults) {
+                console.log(`Barking at: ${ilk}, ${address}`);
+                await this.dog.bark(ilk, address, this.signer.address);
+              }
             }
-          }
-        });
-      })
-    );
+          });
+        })
+      );
+    }
   }
 
   private async _checkUrns(
@@ -176,8 +190,8 @@ export default class Dog {
         if (!this.addresses.find((v) => v === urnAddress)) {
           return {
             address: urnAddress,
-            canBark: false
-          }
+            canBark: false,
+          };
         }
         const urnInfo = await vat.urns(ilk, urnAddress);
         displayUrnInfo(ilk, urnAddress, vatIlkInfo, urnInfo);
@@ -278,28 +292,6 @@ interface IlkInfo {
   rate: BigNumber;
   spot: BigNumber;
   dust: BigNumber;
-}
-
-function displayVatIlkInfo(ilkInfo: IlkInfo) {
-  const { Art, rate, spot, dust } = ilkInfo;
-  const normalized = {
-    Art: displayUnits(Art, Unit.Wad),
-    rate: displayUnits(rate, Unit.Ray),
-    spot: displayUnits(spot, Unit.Ray),
-    dust: displayUnits(dust, Unit.Rad),
-  };
-  console.log(normalized);
-}
-
-function displayDogIlkInfo(dogInfo: DogIlkInfo) {
-  const { clip, chop, hole, dirt } = dogInfo;
-  const normalized = {
-    clip: clip,
-    chop: displayUnits(chop, Unit.Wad),
-    hole: displayUnits(hole, Unit.Rad),
-    dirt: displayUnits(dirt, Unit.Rad),
-  };
-  console.log(normalized);
 }
 
 function displayUrnInfo(
