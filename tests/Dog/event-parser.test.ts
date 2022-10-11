@@ -2,7 +2,7 @@ import { ethers } from "ethers";
 import {
   parseEventAndGroup,
   parseEventsAndGroup,
-} from "../../src/Dog/event-parser";
+} from "../../src/dog/event-parser";
 
 describe("event-parser", () => {
   // Frobメッセージをパースできる

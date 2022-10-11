@@ -1,0 +1,142 @@
+[
+  {
+    "function": "Line()",
+    "signature": "babe8a3f",
+    "topic": "0xbabe8a3f00000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "cage()",
+    "signature": "69245009",
+    "topic": "0x6924500900000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "can(address,address)",
+    "signature": "4538c4eb",
+    "topic": "0x4538c4eb00000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "dai(address)",
+    "signature": "6c25b346",
+    "topic": "0x6c25b34600000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "debt()",
+    "signature": "0dca59c1",
+    "topic": "0x0dca59c100000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "deny(address)",
+    "signature": "9c52a7f1",
+    "topic": "0x9c52a7f100000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "file(bytes32,bytes32,uint256)",
+    "signature": "1a0b287e",
+    "topic": "0x1a0b287e00000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "file(bytes32,uint256)",
+    "signature": "29ae8114",
+    "topic": "0x29ae811400000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "flux(bytes32,address,address,uint256)",
+    "signature": "6111be2e",
+    "topic": "0x6111be2e00000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "fold(bytes32,address,int256)",
+    "signature": "b65337df",
+    "topic": "0xb65337df00000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "fork(bytes32,address,address,int256,int256)",
+    "signature": "870c616d",
+    "topic": "0x870c616d00000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "frob(bytes32,address,address,address,int256,int256)",
+    "signature": "76088703",
+    "topic": "0x7608870300000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "gem(bytes32,address)",
+    "signature": "214414d5",
+    "topic": "0x214414d500000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "grab(bytes32,address,address,address,int256,int256)",
+    "signature": "7bab3f40",
+    "topic": "0x7bab3f4000000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "heal(uint256)",
+    "signature": "f37ac61c",
+    "topic": "0xf37ac61c00000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "hope(address)",
+    "signature": "a3b22fc4",
+    "topic": "0xa3b22fc400000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "ilks(bytes32)",
+    "signature": "d9638d36",
+    "topic": "0xd9638d3600000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "init(bytes32)",
+    "signature": "3b663195",
+    "topic": "0x3b66319500000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "live()",
+    "signature": "957aa58c",
+    "topic": "0x957aa58c00000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "move(address,address,uint256)",
+    "signature": "bb35783b",
+    "topic": "0xbb35783b00000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "nope(address)",
+    "signature": "dc4d20fa",
+    "topic": "0xdc4d20fa00000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "rely(address)",
+    "signature": "65fae35e",
+    "topic": "0x65fae35e00000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "sin(address)",
+    "signature": "f059212a",
+    "topic": "0xf059212a00000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "slip(bytes32,address,int256)",
+    "signature": "7cdd3fde",
+    "topic": "0x7cdd3fde00000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "suck(address,address,uint256)",
+    "signature": "f24e23eb",
+    "topic": "0xf24e23eb00000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "urns(bytes32,address)",
+    "signature": "2424be5c",
+    "topic": "0x2424be5c00000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "vice()",
+    "signature": "2d61a355",
+    "topic": "0x2d61a35500000000000000000000000000000000000000000000000000000000"
+  },
+  {
+    "function": "wards(address)",
+    "signature": "bf353dbb",
+    "topic": "0xbf353dbb00000000000000000000000000000000000000000000000000000000"
+  }
+]

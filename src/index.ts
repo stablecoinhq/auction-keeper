@@ -1,16 +1,22 @@
 import { ethers } from "ethers";
 
-import Dog from "./Dog/dog";
+import Dog from "./dog";
 import Clip from "./clip";
 
-require("dotenv").config();
+const ENV_PATH = process.env.ENV_PATH ? process.env.ENV_PATH : ".env";
 
+console.log(ENV_PATH);
+require("dotenv").config({ path: ENV_PATH });
+
+const ilks = JSON.parse(process.env.ILKS ? process.env.ILKS : "[]");
+console.log(ilks);
 const envs = {
   RPC_HOST: process.env.RPC_HOST!,
   VAT_ADDRESS: process.env.VAT_ADDRESS!,
   DOG_ADDRESS: process.env.DOG_ADDRESS!,
   MNEMONIC: process.env.MNEMONIC!,
   CLIP_ADDRESS: process.env.CLIP_ADDRESS!,
+  FROM_BLOCK: parseInt(process.env.FROM_BLOCK!),
 };
 
 process.on("SIGINT", function () {
@@ -26,24 +32,24 @@ async function main() {
   
   console.log({
     RPC_HOST: envs.RPC_HOST,
-    VAT_ADDRESS: envs.VAT_ADDRESS,
     DOG_ADDRESS: envs.DOG_ADDRESS,
     CLIP_ADDRESS: envs.CLIP_ADDRESS,
     SIGNER_ADDRESS: signer.address,
   });
   const dog = new Dog({
-    vatAddress: envs.VAT_ADDRESS,
     dogAddress: envs.DOG_ADDRESS,
     signer: signer,
     provider: provider,
+    fromBlock: envs.FROM_BLOCK,
   });
-  // 複数のClipを監視できるようにする
-  const clip = new Clip({
-    clipAddress: envs.CLIP_ADDRESS,
-    signer: signer,
-    provider: provider,
-  });
-  Promise.all([dog.start(), clip.start()]);
+  dog.start();
+  // // 複数のClipを監視できるようにする
+  // const clip = new Clip({
+  //   clipAddress: envs.CLIP_ADDRESS,
+  //   signer: signer,
+  //   provider: provider,
+  // });
+  // Promise.all([dog.start(), clip.start()]);
 }
 
 main().catch((e) => {
