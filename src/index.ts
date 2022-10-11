@@ -8,8 +8,8 @@ const ENV_PATH = process.env.ENV_PATH ? process.env.ENV_PATH : ".env";
 console.log(ENV_PATH);
 require("dotenv").config({ path: ENV_PATH });
 
-const ilks = JSON.parse(process.env.ILKS ? process.env.ILKS : "[]");
-console.log(ilks);
+const addresses = JSON.parse(process.env.ADDRESSES ? process.env.ADDRESSES : "[]");
+console.log(addresses);
 const envs = {
   RPC_HOST: process.env.RPC_HOST!,
   VAT_ADDRESS: process.env.VAT_ADDRESS!,
@@ -17,6 +17,7 @@ const envs = {
   MNEMONIC: process.env.MNEMONIC!,
   CLIP_ADDRESS: process.env.CLIP_ADDRESS!,
   FROM_BLOCK: parseInt(process.env.FROM_BLOCK!),
+  ADDRESSES: addresses
 };
 
 process.on("SIGINT", function () {
@@ -38,6 +39,7 @@ async function main() {
   });
   const dog = new Dog({
     dogAddress: envs.DOG_ADDRESS,
+    addresses: envs.ADDRESSES,
     signer: signer,
     provider: provider,
     fromBlock: envs.FROM_BLOCK,

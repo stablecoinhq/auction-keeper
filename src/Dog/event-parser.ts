@@ -10,6 +10,18 @@ interface UrnKey {
   urnAddress: Address;
 }
 
+export function groupUrns(urnsByIlk: UrnsByIlk[]): UrnsByIlk {
+  return urnsByIlk.reduce((prev, curr) => {
+    for (const [urn, addrs] of curr.entries()) {
+      for (const [addr] of addrs.entries()) {
+        const modified = prev.get(urn)?.add(addr) || new Set<string>().add(addr);
+        prev.set(urn, modified);
+      }
+    }
+    return prev;
+  }, new Map() as UrnsByIlk);
+}
+
 export type UrnsByIlk = Map<string, Set<string>>;
 
 const ONE_BYTE_IN_HEX = 64;
@@ -118,10 +130,13 @@ export function parseEventAndGroup(rawEvent: string): UrnsByIlk {
 }
 
 // イベントを解析し、UrnをIlk毎にまとめる
-export function parseEventsAndGroup(rawEvents: string[]): UrnsByIlk {
+export function parseEventsAndGroup(
+  rawEvents: string[],
+  urnByIlk?: UrnsByIlk
+): UrnsByIlk {
+  const u = urnByIlk ? urnByIlk : new Map();
   const urns = rawEvents.reduce((prev, rawEvent) => {
     return parseRawEventMap(rawEvent, prev);
-  }, new Map() as UrnsByIlk);
+  }, u);
   return urns;
 }
-
