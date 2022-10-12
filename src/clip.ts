@@ -43,7 +43,7 @@ function displayAuctionInfo(auctionInfo: AuctionInfo): void {
     amountBeingAuctioned: displayUnits(lot, unitContants.WAD),
     startingPrice: displayUnits(top, unitContants.RAY),
     currentPrice: displayUnits(price, unitContants.RAY),
-    startAt: tic.eq(0) ? 0 : new Date(tic.toNumber() * 10 ** 3),
+    startedAt: tic.eq(0) ? 0 : new Date(tic.toNumber() * 10 ** 3),
     ended: lot.eq(0) || needsRedo,
   };
   console.log(normalised);

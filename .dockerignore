@@ -4,7 +4,6 @@
 .dockerignore
 .circleci
 .vscode
-cypress
 # Build dependencies
 dist
 node_modules
