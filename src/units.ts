@@ -3,7 +3,7 @@ import { BigNumber } from "ethers";
 
 // https://github.com/makerdao/dss/blob/master/DEVELOPING.md#units
 
-export enum Unit {
+enum Unit {
   Wad = 18,
   Ray = 27,
   Rad = 45,
@@ -15,11 +15,11 @@ export const constants = {
   RAD: BigNumber.from(10).pow(Unit.Rad),
 };
 
-export function displayUnits(num: BigNumber, unit: Unit): string {
-  const DECIMAL_PLACES = 10 ** 3;
+export function displayUnits(num: BigNumber, decimalPlaces: BigNumber): number {
+  const DECIMAL_PLACES = 10 ** 10;
 
-  function toStandard(num: BigNumber, divBy: BigNumber): Number {
-    return num.div(divBy.div(DECIMAL_PLACES)).toNumber() / DECIMAL_PLACES;
+  function toStandard(num: BigNumber, divBy: BigNumber): number {
+    return num.mul(DECIMAL_PLACES).div(divBy).toNumber() / DECIMAL_PLACES;
   }
-  return toStandard(num, BigNumber.from(10).pow(unit)).toLocaleString();
+  return toStandard(num, decimalPlaces);
 }

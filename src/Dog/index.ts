@@ -5,7 +5,7 @@ import {
   Dog__factory,
 } from "../../types/ethers-contracts/index";
 import { BigNumber, constants } from "ethers";
-import { displayUnits, Unit, constants as unitContants } from "../units";
+import { displayUnits, constants as unitContants } from "../units";
 import { ethers } from "ethers";
 import {
   parseEventsAndGroup,
@@ -51,24 +51,26 @@ export interface DogConfig {
   signer: ethers.Wallet;
   provider: ethers.providers.JsonRpcProvider;
   fromBlock: number;
+  ilks: string[];
   toBlock: number | "latest";
-  addresses: string[];
 }
 
 export default class Dog {
   readonly vatContract: Promise<VatContract>;
   readonly dog: DogContract;
   readonly fromBlock: number;
+  readonly ilks: string[];
   readonly toBlock: number | "latest";
-  readonly addresses: string[];
   private signer: ethers.Wallet;
   signerAddress: string;
   Dirt: BigNumber = BigNumber.from(0);
   Hole: BigNumber = BigNumber.from(0);
 
   constructor(config: DogConfig) {
-    const { dogAddress, signer, fromBlock, toBlock, addresses } = config;
-    this.addresses = addresses;
+    const { dogAddress, signer, fromBlock, toBlock, ilks } = config;
+    this.ilks = ilks.map((v) => {
+      return v.toLowerCase();
+    });
     this.signer = signer;
     this.signerAddress = this.signer.address;
     this.fromBlock = fromBlock;
@@ -100,10 +102,12 @@ export default class Dog {
         ? await this.signer.provider.getBlockNumber()
         : this.toBlock;
     const bunch = splitBlocks(this.fromBlock, latestBlock);
-    console.log(bunch);
 
     const urns = await Promise.all(
       bunch.map(async ({ from, to }) => {
+        console.log(
+          `Fetching events from block ${from.toLocaleString()} to ${to.toLocaleString()}`
+        );
         return functionSignatures.reduce(async (prev, currentEvent) => {
           const prevs = await prev;
           const eventRawData = await this.getPastEvents(from, to, currentEvent);
@@ -124,7 +128,7 @@ export default class Dog {
         const barkResult = unsafeVaults.reduce(async (prev, unsafeVault) => {
           const result = await prev;
           const { ilk, address } = unsafeVault;
-          console.log(`Barking at: ${ilk}, ${address}`);
+          console.log(`Barking at ilk: ${ilk}, address: ${address}`);
           await this.dog.bark(ilk, address, this.signer.address);
           return [...result, unsafeVault];
         }, Promise.resolve([]) as Promise<CanBark[]>);
@@ -132,10 +136,8 @@ export default class Dog {
       })
     );
 
-    const r = barkResult.flat();
-
-    r.forEach((v) => {
-      console.log(v);
+    barkResult.flat().forEach(({ ilk, address }) => {
+      console.log(`Barked at ilk: ${ilk}, address: ${address}`);
     });
 
     if (this.toBlock === "latest") {
@@ -177,6 +179,11 @@ export default class Dog {
       return [];
     }
 
+    // 監視対象のilkでないなら何もしない
+    if (!this.ilks.find((v) => v === ilk)) {
+      return [];
+    }
+
     const isLiquidationLimitSafe =
       this.Hole.gt(this.Dirt) && dogIlk.hole.gt(dogIlk.dirt);
     // オークションがDAI上限に達している
@@ -187,12 +194,6 @@ export default class Dog {
 
     const barks = await Promise.all(
       urnAddresses.map(async (urnAddress) => {
-        if (!this.addresses.find((v) => v === urnAddress)) {
-          return {
-            address: urnAddress,
-            canBark: false,
-          };
-        }
         const urnInfo = await vat.urns(ilk, urnAddress);
         displayUrnInfo(ilk, urnAddress, vatIlkInfo, urnInfo);
         return {
@@ -247,10 +248,10 @@ export default class Dog {
       ? Hole.sub(Dirt)
       : hole.sub(dirt);
     // roomを正規化
-    const normalizedRoom = room.div(Unit.Wad).div(rate).div(chop);
+    const normalizedRoom = room.mul(unitContants.WAD).div(rate).div(chop);
     const dart = art.lte(normalizedRoom) ? art : normalizedRoom;
-    // Vaultの金額が少額
-    const isDust = dart.mul(rate).gte(dust);
+    // 精算されるVaultの金額が少額
+    const isDust = dart.mul(rate).lt(dust);
     // Spot(通貨毎のDAI最大発行可能枚数)が0以下
     // ink(担保されている通貨数量) * Spotが負債(art * rate)より小さければ安全
     const isUnsafeVault = spot.gt(0) && ink.mul(spot).lt(art.mul(rate));
@@ -303,22 +304,26 @@ function displayUrnInfo(
   const { art, ink } = urnInfo;
   const { rate, spot } = ilkInfo;
   // 現在の負債(DAI)
-  const debt = art.mul(rate).div(unitContants.WAD).div(unitContants.RAY);
+  const debt = art.mul(rate);
   // 許容可能な負債(DAI)
-  const maximumAllowedDebt = ink
-    .mul(spot)
-    .div(unitContants.WAD)
-    .div(unitContants.RAY);
+  const maximumAllowedDebt = ink.mul(spot);
+
   // 許容可能な負債 - 現在の負債 = 精算までのDAI
-  const untilCollaterization = maximumAllowedDebt.sub(debt);
+  const untilLiquidation = maximumAllowedDebt.sub(debt);
   const normalized = {
     ilk: ilk,
     address: urnAddress,
-    ink: displayUnits(ink, Unit.Wad),
-    art: displayUnits(art, Unit.Wad),
-    debt: debt.toString(),
-    maximumAllowedDebt: maximumAllowedDebt.toString(),
-    untilLiquidation: untilCollaterization.toString(),
+    ink: displayUnits(ink, unitContants.WAD),
+    art: displayUnits(art, unitContants.WAD),
+    debt: displayUnits(debt, unitContants.WAD.mul(unitContants.RAY)),
+    maximumAllowedDebt: displayUnits(
+      maximumAllowedDebt,
+      unitContants.WAD.mul(unitContants.RAY)
+    ),
+    untilLiquidation: displayUnits(
+      untilLiquidation,
+      unitContants.WAD.mul(unitContants.RAY)
+    ),
   };
   console.log(normalized);
 }

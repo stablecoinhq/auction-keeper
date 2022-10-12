@@ -24,7 +24,7 @@ export function groupUrns(urnsByIlk: UrnsByIlk[]): UrnsByIlk {
 
 export type UrnsByIlk = Map<string, Set<string>>;
 
-const ONE_BYTE_IN_HEX = 64;
+const BYTES_LENGTH = 64;
 
 const FUNCTION_SIGNATURES = {
   FROB: "76088703",
@@ -48,24 +48,24 @@ function toAddress(data: string): Address {
 function parseRawEventMap(rawEvent: string, urns: UrnsByIlk): UrnsByIlk {
   const functionSignature = rawEvent
     .slice(2) // 0x
-    .slice(ONE_BYTE_IN_HEX * 2) // 最初の64バイトは無視
+    .slice(BYTES_LENGTH * 2) // 最初の64バイトは無視
     .slice(0, 8); // これが関数シグネチャ
 
-  const context = rawEvent.slice(2).slice(ONE_BYTE_IN_HEX * 2 + 8);
+  const context = rawEvent.slice(2).slice(BYTES_LENGTH * 2 + 8);
   // イベントの第一引数は必ずIlk
-  const ilk = toIlk(context.slice(0, ONE_BYTE_IN_HEX));
+  const ilk = toIlk(context.slice(0, BYTES_LENGTH));
   const addrs = urns.get(ilk) || new Set();
   if (functionSignature === FUNCTION_SIGNATURES.FROB) {
     const urnAddress = toAddress(
-      context.slice(ONE_BYTE_IN_HEX, ONE_BYTE_IN_HEX * 2)
+      context.slice(BYTES_LENGTH, BYTES_LENGTH * 2)
     );
     return urns.set(ilk, addrs.add(urnAddress));
   } else if (functionSignature === FUNCTION_SIGNATURES.FORK) {
     const sourceAddress = toAddress(
-      context.slice(ONE_BYTE_IN_HEX, ONE_BYTE_IN_HEX * 2)
+      context.slice(BYTES_LENGTH, BYTES_LENGTH * 2)
     );
     const destinationAddress = toAddress(
-      context.slice(ONE_BYTE_IN_HEX * 2, ONE_BYTE_IN_HEX * 3)
+      context.slice(BYTES_LENGTH * 2, BYTES_LENGTH * 3)
     );
     if (sourceAddress === destinationAddress) {
       return urns.set(ilk, addrs.add(sourceAddress));
@@ -80,15 +80,15 @@ function parseRawEventMap(rawEvent: string, urns: UrnsByIlk): UrnsByIlk {
 function parseRawEvent(rawEvent: string): UrnKey[] {
   const functionSignature = rawEvent
     .slice(2) // 0x
-    .slice(ONE_BYTE_IN_HEX * 2) // 最初の64バイトは無視
+    .slice(BYTES_LENGTH * 2) // 最初の64バイトは無視
     .slice(0, 8); // これが関数シグネチャ
 
-  const context = rawEvent.slice(2).slice(ONE_BYTE_IN_HEX * 2 + 8);
+  const context = rawEvent.slice(2).slice(BYTES_LENGTH * 2 + 8);
   // イベントの第一引数は必ずIlk
-  const ilk = toIlk(context.slice(0, ONE_BYTE_IN_HEX));
+  const ilk = toIlk(context.slice(0, BYTES_LENGTH));
   if (functionSignature === FUNCTION_SIGNATURES.FROB) {
     const urnAddress = toAddress(
-      context.slice(ONE_BYTE_IN_HEX, ONE_BYTE_IN_HEX * 2)
+      context.slice(BYTES_LENGTH, BYTES_LENGTH * 2)
     );
     return [
       {
@@ -98,10 +98,10 @@ function parseRawEvent(rawEvent: string): UrnKey[] {
     ];
   } else if (functionSignature === FUNCTION_SIGNATURES.FORK) {
     const sourceAddress = toAddress(
-      context.slice(ONE_BYTE_IN_HEX, ONE_BYTE_IN_HEX * 2)
+      context.slice(BYTES_LENGTH, BYTES_LENGTH * 2)
     );
     const destinationAddress = toAddress(
-      context.slice(ONE_BYTE_IN_HEX * 2, ONE_BYTE_IN_HEX * 3)
+      context.slice(BYTES_LENGTH * 2, BYTES_LENGTH * 3)
     );
     const sourceUrn = { ilk, urnAddress: sourceAddress };
     const destUrn = { ilk, urnAddress: destinationAddress };
