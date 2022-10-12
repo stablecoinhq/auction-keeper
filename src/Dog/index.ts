@@ -129,8 +129,15 @@ export default class Dog {
           const result = await prev;
           const { ilk, address } = unsafeVault;
           console.log(`Barking at ilk: ${ilk}, address: ${address}`);
-          await this.dog.bark(ilk, address, this.signer.address);
-          return [...result, unsafeVault];
+          const barkResult = await this._bark(ilk, address);
+          if (barkResult) {
+            console.log("Bark success");
+            console.log(barkResult)
+            return [...result, unsafeVault];
+          } else {
+            console.log("Bark was not successful");
+            return result;
+          }
         }, Promise.resolve([]) as Promise<CanBark[]>);
         return barkResult;
       })
@@ -155,12 +162,24 @@ export default class Dog {
               console.log("Unsafe vaults", unsafeVaults);
               for (const { ilk, address } of unsafeVaults) {
                 console.log(`Barking at: ${ilk}, ${address}`);
-                await this.dog.bark(ilk, address, this.signer.address);
+                await this._bark(ilk, address);
               }
             }
           });
         })
       );
+    }
+  }
+
+  private async _bark(
+    ilk: string,
+    address: string
+  ): Promise<ethers.ContractTransaction | undefined> {
+    try {
+      return this.dog.bark(ilk, address, this.signer.address);
+    } catch (e) {
+      console.log(`Bark failed with reason ${e}`);
+      return undefined;
     }
   }
 
