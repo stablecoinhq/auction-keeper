@@ -34,3 +34,8 @@ docker build . --target=application --tag=auction-keeper:latest
 ```
 docker run --rm --name=auction-keeper -v $(pwd)/.env:/app/.env auction-keeper:latest
 ```
+
+TODO:
+
+- Jugが`drip`を読んだ際にに担保率が変動した通貨に関するVaultが精算されるか調べる
+- Spotが`poke`を読んだ際に価格が変動した通貨に関するVaultが精算されるか調べる
