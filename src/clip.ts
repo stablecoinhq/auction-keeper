@@ -22,7 +22,7 @@ export interface AuctionInfo {
   tic: BigNumber; // オークション開始時刻
   top: BigNumber; // 開始価格
   auctionPrice: BigNumber; //現在の価格
-  needsRedo: boolean; // 再オークション
+  ended: boolean; // 再オークション
 }
 
 function displayAuctionInfo(auctionInfo: AuctionInfo): void {
@@ -34,7 +34,7 @@ function displayAuctionInfo(auctionInfo: AuctionInfo): void {
     tic,
     top,
     auctionPrice: price,
-    needsRedo,
+    ended: needsRedo,
   } = auctionInfo;
   const normalised = {
     auctionId: auctionId.toString(),
@@ -65,9 +65,14 @@ export default class Clip {
     this.clip = Clip__factory.connect(clipAddress, this.signer);
     this.vat = Vat__factory.connect(vatAddress, this.signer);
   }
-  
+
   async hope() {
-    return this.vat.hope(this.clip.address);
+    const allowed = await this.vat.can(this.signerAddress, this.clip.address);
+    if (allowed.eq(1)) {
+      return;
+    } else {
+      this.vat.hope(this.clip.address);
+    }
   }
 
   async start() {
@@ -75,37 +80,75 @@ export default class Clip {
     const count = await this.clip.count();
     if (count.eq(0)) {
       console.log(`No auctions available for ${ilk}`);
-      return;
+    } else {
+      const activeAuctionIds = await this.clip.list();
+      await Promise.all(
+        activeAuctionIds.map(async (auctionId) => {
+          this._paricipateAuction(auctionId);
+        })
+      );
     }
-    const activeAuctionIds = await this.clip.list();
-    await Promise.all(
-      activeAuctionIds.map(async (auctionId) => {
-        const { tic, top, tab, lot, usr } = await this.clip.sales(auctionId);
-        const { needsRedo, price } = await this.clip.getStatus(auctionId);
-        const auctionInfo: AuctionInfo = {
-          auctionId,
-          tic,
-          top,
-          tab,
-          lot,
-          usr,
-          auctionPrice: price,
-          needsRedo,
-        };
-        displayAuctionInfo(auctionInfo);
-        this._take(auctionInfo);
-        return auctionInfo;
-      })
-    );
+    const kickEventFilter =
+      this.clip.filters[
+        "Kick(uint256,uint256,uint256,uint256,address,address,uint256)"
+      ]();
+    this.clip.on(kickEventFilter, async (...args) => {
+      const [auctionId] = args;
+      console.log(`Auction id: ${auctionId.toString()} started.`);
+      this._paricipateAuction(auctionId);
+    });
+    const takeEventFilter =
+      this.clip.filters[
+        "Take(uint256,uint256,uint256,uint256,uint256,uint256,address)"
+      ]();
+    this.clip.on(takeEventFilter, async (...args) => {
+      const [id] = args;
+      const gem = await this.vat.gem(this.ilk, this.signerAddress);
+      console.log(
+        `Auction id ${id.toString()} success! Got token ${displayUnits(
+          gem,
+          unitContants.WAD
+        )}`
+      );
+    });
   }
 
+  // 与えられたオークションIDに参加する
+  private async _paricipateAuction(auctionId: BigNumber) {
+    const { tic, top, tab, lot, usr } = await this.clip.sales(auctionId);
+    const { needsRedo, price } = await this.clip.getStatus(auctionId);
+    const ended = lot.eq(0) || needsRedo;
+    const auctionInfo: AuctionInfo = {
+      auctionId,
+      tic,
+      top,
+      tab,
+      lot,
+      usr,
+      auctionPrice: price,
+      ended,
+    };
+    displayAuctionInfo(auctionInfo);
+    this._take(auctionInfo);
+    return auctionInfo;
+  }
+
+  // 入札する
   private async _take(auctionInfo: AuctionInfo) {
-    // ここでオークションに参加する
-    const { auctionId, lot, auctionPrice } = auctionInfo;
+    const { auctionId, lot, auctionPrice, ended } = auctionInfo;
+    if (ended) {
+      console.log(`Auction ${auctionId} is finished`);
+      return;
+    }
     const availableDai = await this.vat.dai(this.signer.address);
     const amountWeCanAfford = availableDai.div(auctionPrice);
     if (availableDai.lte(0) || amountWeCanAfford.lte(0)) {
-      console.log(`We have no available dai to participate in auction: ${displayUnits(availableDai, unitContants.RAD)}`);
+      console.log(
+        `We have no available dai to participate in auction: ${displayUnits(
+          availableDai,
+          unitContants.RAD
+        )}`
+      );
       return;
     }
     const amountToPurchase = amountWeCanAfford.lt(lot)
@@ -118,6 +161,8 @@ export default class Clip {
       this.signer.address,
       []
     );
-    console.log(`Bidding submitted ${result.hash}, ${amountToPurchase} at the price of ${auctionPrice}`)
+    console.log(
+      `Bidding submitted ${result.hash}, ${amountToPurchase} at the price of ${auctionPrice}`
+    );
   }
 }

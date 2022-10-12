@@ -146,7 +146,6 @@ export default class Dog {
           const barkResult = await this._bark(ilk, address);
           if (barkResult) {
             console.log("Bark success");
-            // console.log(barkResult);
             return [...result, unsafeVault];
           } else {
             console.log("Bark was not successful");
