@@ -14,12 +14,15 @@ import {
   groupUrns,
 } from "./event-parser";
 
-const fork =
-  "0x870c616d00000000000000000000000000000000000000000000000000000000";
-const frob =
-  "0x7608870300000000000000000000000000000000000000000000000000000000";
+enum Events {
+  fork = "0x870c616d00000000000000000000000000000000000000000000000000000000",
+  frob = "0x7608870300000000000000000000000000000000000000000000000000000000",
+  file = "0x1a0b287e00000000000000000000000000000000000000000000000000000000",
+  fold = "0xb65337df00000000000000000000000000000000000000000000000000000000",
+}
 
-const functionSignatures = [fork, frob];
+const SPOT =
+  "0x73706f7400000000000000000000000000000000000000000000000000000000";
 
 const voidAddress = "0x0000000000000000000000000000000000000000";
 
@@ -62,6 +65,7 @@ export default class Dog {
   readonly ilks: string[];
   readonly toBlock: number | "latest";
   private signer: ethers.Wallet;
+  private urnByIlks: UrnsByIlk;
   signerAddress: string;
   Dirt: BigNumber = BigNumber.from(0);
   Hole: BigNumber = BigNumber.from(0);
@@ -75,6 +79,7 @@ export default class Dog {
     this.signerAddress = this.signer.address;
     this.fromBlock = fromBlock;
     this.toBlock = toBlock;
+    this.urnByIlks = new Map();
     this.dog = Dog__factory.connect(dogAddress, this.signer);
     this.vatContract = this.dog
       .vat()
@@ -82,7 +87,9 @@ export default class Dog {
   }
 
   // Clipアドレス一覧を返却
-  async getClipAddresses(ilks: string[]): Promise<{ ilk: string; address: string }[]> {
+  async getClipAddresses(
+    ilks: string[]
+  ): Promise<{ ilk: string; address: string }[]> {
     return Promise.all(
       ilks.map(async (ilk) => {
         const { clip } = await this.dog.ilks(ilk);
@@ -124,7 +131,7 @@ export default class Dog {
         console.log(
           `Fetching events from block ${from.toLocaleString()} to ${to.toLocaleString()}`
         );
-        return functionSignatures.reduce(async (prev, currentEvent) => {
+        return [Events.fork, Events.frob].reduce(async (prev, currentEvent) => {
           const prevs = await prev;
           const eventRawData = await this.getPastEvents(from, to, currentEvent);
           const urnsByIlk = parseEventsAndGroup(eventRawData, prevs);
@@ -133,10 +140,10 @@ export default class Dog {
       })
     );
 
-    const urnsByIlk = groupUrns(urns);
+    this.urnByIlks = groupUrns(urns);
 
     const barkResult = await Promise.all(
-      Array.from(urnsByIlk.entries()).map(async ([ilk, urnAddresses]) => {
+      Array.from(this.urnByIlks.entries()).map(async ([ilk, urnAddresses]) => {
         const addrs = Array.from(urnAddresses);
         const unsafeVaults = await this._checkUrns(ilk, addrs);
         const barkResult = unsafeVaults.reduce(async (prev, unsafeVault) => {
@@ -160,27 +167,49 @@ export default class Dog {
       console.log(`Barked at ilk: ${ilk}, address: ${address}`);
     });
 
-    if (this.toBlock === "latest") {
-      console.log("Start listening to ongoing events...");
-      await Promise.all(
-        functionSignatures.map(async (sig) => {
-          const eventFilter =
-            vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](sig);
-          vat.on(eventFilter, async (...args) => {
-            const [, , , , , logNoteEvent] = args;
-            const urnsByIlk = parseEventAndGroup(logNoteEvent.address);
-            for (const [ilk, urnAddresses] of urnsByIlk.entries()) {
-              const addrs = Array.from(urnAddresses);
-              const unsafeVaults = await this._checkUrns(ilk, addrs);
-              console.log("Unsafe vaults", unsafeVaults);
-              for (const { ilk, address } of unsafeVaults) {
-                console.log(`Barking at: ${ilk}, ${address}`);
-                await this._bark(ilk, address);
-              }
+    if (this.toBlock !== "latest") {
+      return;
+    }
+
+    console.log("Start listening to ongoing events...");
+
+    [Events.fold, Events.fork, Events.frob, Events.file].map(async (event) => {
+      const eventFilter =
+        vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](event);
+      vat.on(eventFilter, async (...args) => {
+        const [, arg1, arg2, , , logNoteEvent] = args;
+        const ilk = arg1;
+        switch (event) {
+          case Events.fold:
+            const targets = this.urnByIlks.get(ilk) || new Set();
+            this._check(new Map().set(ilk, targets));
+            break;
+          case Events.file:
+            // spotによって価格が変動した場合には、変動した通貨に関するVaultを調べる
+            if (arg2 === SPOT) {
+              const targets = this.urnByIlks.get(ilk) || new Set();
+              this._check(new Map().set(ilk, targets));
             }
-          });
-        })
-      );
+            break;
+          default:
+            const urnsByIlk = parseEventAndGroup(logNoteEvent.address);
+            this.urnByIlks = groupUrns([this.urnByIlks, urnsByIlk]);
+            this._check(urnsByIlk);
+            break;
+        }
+      });
+    });
+  }
+
+  private async _check(urnsByIlk: UrnsByIlk) {
+    for (const [ilk, urnAddresses] of urnsByIlk.entries()) {
+      const addrs = Array.from(urnAddresses);
+      const unsafeVaults = await this._checkUrns(ilk, addrs);
+      console.log("Unsafe vaults", unsafeVaults);
+      for (const { ilk, address } of unsafeVaults) {
+        console.log(`Barking at: ${ilk}, ${address}`);
+        await this._bark(ilk, address);
+      }
     }
   }
 
