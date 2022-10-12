@@ -81,6 +81,22 @@ export default class Dog {
       .then((v) => Vat__factory.connect(v, this.signer));
   }
 
+  // Clipアドレス一覧を返却
+  async getClipAddresses(ilks: string[]): Promise<{ ilk: string; address: string }[]> {
+    return Promise.all(
+      ilks.map(async (ilk) => {
+        const { clip } = await this.dog.ilks(ilk);
+        return {
+          ilk,
+          address: clip,
+        };
+      })
+    );
+  }
+  async getVatAddress() {
+    return (await this.vatContract).address;
+  }
+
   async start(this: Dog): Promise<void> {
     const vat = await this.vatContract;
     const isVatLive = (await vat.live()).eq(1);
@@ -119,8 +135,6 @@ export default class Dog {
 
     const urnsByIlk = groupUrns(urns);
 
-    console.log(urnsByIlk);
-
     const barkResult = await Promise.all(
       Array.from(urnsByIlk.entries()).map(async ([ilk, urnAddresses]) => {
         const addrs = Array.from(urnAddresses);
@@ -132,7 +146,7 @@ export default class Dog {
           const barkResult = await this._bark(ilk, address);
           if (barkResult) {
             console.log("Bark success");
-            console.log(barkResult)
+            // console.log(barkResult);
             return [...result, unsafeVault];
           } else {
             console.log("Bark was not successful");

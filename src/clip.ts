@@ -2,56 +2,72 @@ import { BigNumber, ethers } from "ethers";
 import {
   Clip as ClipContract,
   Clip__factory,
-  Abacus as AbacusContract,
-  Abacus__factory,
+  Vat__factory,
+  Vat as VatContract,
 } from "../types/ethers-contracts/index";
-/**
- * - As introduced in the Monitoring section, to locate a list of live auctions, read the active array of active auction IDs by first calling the `count()` to determine the size of the array.
-- Then, for the entire array, call `getId` to read the ID in each element of the array.
-- Then pass in each ID to the `sales` mapping to read the `lot` and the `top` in the `Sale` structure - this is the amount of collateral being sold and the auction starting price, respectively.
-- Finally, read the `calc` (Abacus) variable in the `Clipper` contract to locate the contract that determines the price of any auction associated with said Clipper contract. 
-- Next, pass in the `top` and the amount of time since the `tic` to the first and second argument, respectively,
-- to the `Calc.price(top, current time - tic)` function to determine the price at which the collateral is being sold for at the `current time`. This section ends with an example that converts this description into a smart contract function.
- */
+import { displayUnits, constants as unitContants } from "./units";
 
 export interface ClipConfig {
   clipAddress: string;
+  vatAddress: string;
+  ilk: string;
   signer: ethers.Wallet;
-  provider: ethers.providers.JsonRpcProvider;
 }
 
-// {
-//   "id": "6",
-//   "flapper": " 0xf0afc3108bb8f196cf8d076c8c4877a4c53d4e7c ",
-//   "bid": "7.142857142857142857",
-//   "lot": "10000.000000000000000000",
-//   "beg": "1.050000000000000000",
-//   "guy": " 0x00531a10c4fbd906313768d277585292aa7c923a ",
-//   "era": 1530530620,
-//   "tic": 1530541420,
-//   "end": 1531135256,
-//   "price": "1400.000000000000000028"
-// }
 export interface AuctionInfo {
-  id: BigNumber;
-  tab: BigNumber;
-  lot: BigNumber;
-  usr: string;
-  top: BigNumber;
-  currentPrice: BigNumber;
+  auctionId: BigNumber; // オークションId
+  tab: BigNumber; // 精算に必要なDAI
+  lot: BigNumber; // 精算される通貨総数量
+  usr: string; // 対象のVault
+  tic: BigNumber; // オークション開始時刻
+  top: BigNumber; // 開始価格
+  auctionPrice: BigNumber; //現在の価格
+  needsRedo: boolean; // 再オークション
+}
+
+function displayAuctionInfo(auctionInfo: AuctionInfo): void {
+  const {
+    auctionId,
+    tab,
+    lot,
+    usr,
+    tic,
+    top,
+    auctionPrice: price,
+    needsRedo,
+  } = auctionInfo;
+  const normalised = {
+    auctionId: auctionId.toString(),
+    vault: usr,
+    daiToRaise: displayUnits(tab, unitContants.RAD),
+    amountBeingAuctioned: displayUnits(lot, unitContants.WAD),
+    startingPrice: displayUnits(top, unitContants.RAY),
+    currentPrice: displayUnits(price, unitContants.RAY),
+    startAt: tic.eq(0) ? 0 : new Date(tic.toNumber() * 10 ** 3),
+    ended: lot.eq(0) || needsRedo,
+  };
+  console.log(normalised);
 }
 
 // 通貨毎にClipがあるので、それぞれインスタンス化必要がある
 export default class Clip {
   readonly clip: ClipContract;
+  readonly vat: VatContract;
+  readonly ilk: string;
   private signer: ethers.Wallet;
   signerAddress: string;
 
   constructor(args: ClipConfig) {
-    const { clipAddress, signer } = args;
+    const { clipAddress, vatAddress, ilk, signer } = args;
     this.signer = signer;
+    this.ilk = ilk;
     this.signerAddress = this.signer.address;
     this.clip = Clip__factory.connect(clipAddress, this.signer);
+    this.vat = Vat__factory.connect(vatAddress, this.signer);
+  }
+  
+  async hope() {
+    return this.vat.hope(this.clip.address);
   }
 
   async start() {
@@ -61,36 +77,47 @@ export default class Clip {
       console.log(`No auctions available for ${ilk}`);
       return;
     }
-    const abacusAddress = await this.clip.calc();
-    const abacus = Abacus__factory.connect(abacusAddress, this.signer);
-
     const activeAuctionIds = await this.clip.list();
-    const activeAuctions = await activeAuctionIds.reduce(
-      async (prev, auctionId) => {
-        const auctions = await prev;
-        const { tic, top, pos, tab, lot, usr } = await this.clip.sales(
-          auctionId
-        );
-        const currentTime = BigNumber.from(new Date().getTime() / 1000);
-        const delta = currentTime.sub(tic);
-        if (delta.lt(0)) {
-          return prev;
-        } else {
-          const currentPrice = await abacus.price(top, delta);
-          const auctionInfo = {
-            id: pos,
-            tic,
-            top,
-            tab,
-            lot,
-            usr,
-            currentPrice,
-          };
-          return [...auctions, auctionInfo];
-        }
-      },
-      Promise.resolve([]) as Promise<AuctionInfo[]>
+    await Promise.all(
+      activeAuctionIds.map(async (auctionId) => {
+        const { tic, top, tab, lot, usr } = await this.clip.sales(auctionId);
+        const { needsRedo, price } = await this.clip.getStatus(auctionId);
+        const auctionInfo: AuctionInfo = {
+          auctionId,
+          tic,
+          top,
+          tab,
+          lot,
+          usr,
+          auctionPrice: price,
+          needsRedo,
+        };
+        displayAuctionInfo(auctionInfo);
+        this._take(auctionInfo);
+        return auctionInfo;
+      })
     );
-    console.log(`Active auctions: ${activeAuctions}`);
+  }
+
+  private async _take(auctionInfo: AuctionInfo) {
+    // ここでオークションに参加する
+    const { auctionId, lot, auctionPrice } = auctionInfo;
+    const availableDai = await this.vat.dai(this.signer.address);
+    const amountWeCanAfford = availableDai.div(auctionPrice);
+    if (availableDai.lte(0) || amountWeCanAfford.lte(0)) {
+      console.log(`We have no available dai to participate in auction: ${displayUnits(availableDai, unitContants.RAD)}`);
+      return;
+    }
+    const amountToPurchase = amountWeCanAfford.lt(lot)
+      ? amountWeCanAfford
+      : lot;
+    const result = await this.clip.take(
+      auctionId,
+      amountToPurchase,
+      auctionPrice,
+      this.signer.address,
+      []
+    );
+    console.log(`Bidding submitted ${result.hash}, ${amountToPurchase} at the price of ${auctionPrice}`)
   }
 }

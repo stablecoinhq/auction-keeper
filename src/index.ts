@@ -10,14 +10,10 @@ require("dotenv").config({ path: ENV_PATH });
 
 const ilks = JSON.parse(process.env.ILKS ? process.env.ILKS : "[]");
 
-console.log(ilks);
-
 const envs = {
   RPC_HOST: process.env.RPC_HOST!,
-  VAT_ADDRESS: process.env.VAT_ADDRESS!,
   DOG_ADDRESS: process.env.DOG_ADDRESS!,
   MNEMONIC: process.env.MNEMONIC!,
-  CLIP_ADDRESS: process.env.CLIP_ADDRESS!,
   FROM_BLOCK: parseInt(process.env.FROM_BLOCK!),
   TO_BLOCK: (process.env.TO_BLOCK
     ? parseInt(process.env.TO_BLOCK)
@@ -35,13 +31,6 @@ async function main() {
   // singletonにする
   const provider = new ethers.providers.JsonRpcProvider(envs.RPC_HOST);
   const signer = ethers.Wallet.fromMnemonic(envs.MNEMONIC).connect(provider);
-
-  console.log({
-    RPC_HOST: envs.RPC_HOST,
-    DOG_ADDRESS: envs.DOG_ADDRESS,
-    CLIP_ADDRESS: envs.CLIP_ADDRESS,
-    SIGNER_ADDRESS: signer.address,
-  });
   const dog = new Dog({
     dogAddress: envs.DOG_ADDRESS,
     ilks: envs.ILKS,
@@ -50,14 +39,41 @@ async function main() {
     fromBlock: envs.FROM_BLOCK,
     toBlock: envs.TO_BLOCK,
   });
-  dog.start();
-  // // 複数のClipを監視できるようにする
-  // const clip = new Clip({
-  //   clipAddress: envs.CLIP_ADDRESS,
-  //   signer: signer,
-  //   provider: provider,
-  // });
-  // Promise.all([dog.start(), clip.start()]);
+
+  const clipAddresses = await dog.getClipAddresses(envs.ILKS);
+  const vatAddress = await dog.getVatAddress();
+
+  console.log({
+    RPC_HOST: envs.RPC_HOST,
+    DOG_ADDRESS: envs.DOG_ADDRESS,
+    SIGNER_ADDRESS: signer.address,
+    VAT_ADDRESS: vatAddress,
+    CLIP_ADDRESSES: clipAddresses,
+  });
+
+  const clips = clipAddresses.map(({ ilk, address }) => {
+    return new Clip({
+      clipAddress: address,
+      vatAddress: vatAddress,
+      ilk: ilk,
+      signer: signer,
+    });
+  });
+
+  // これは事前にやっておく必要がある
+  await Promise.all(clips.map(async (clip) => {
+    clip.hope();
+  }))
+
+  Promise.all(
+    [...clips, dog].map((v) => {
+      if (v instanceof Clip) {
+        v.start();
+      } else if (v instanceof Dog) {
+        v.start();
+      }
+    })
+  );
 }
 
 main().catch((e) => {
