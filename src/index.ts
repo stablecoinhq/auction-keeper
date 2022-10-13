@@ -18,8 +18,6 @@ async function main() {
 
   const envs = getEnvs();
 
-  console.log(envs);
-
   // singletonにする
   const provider = new ethers.providers.JsonRpcProvider(envs.RPC_HOST);
   const signer = ethers.Wallet.fromMnemonic(envs.MNEMONIC).connect(provider);

@@ -23,7 +23,7 @@ async function main() {
   const provider = new ethers.providers.JsonRpcProvider(envs.RPC_HOST);
   const signer = ethers.Wallet.fromMnemonic(envs.MNEMONIC).connect(provider);
 
-  const vatAddress = "0xA950524441892A31ebddF91d3cEEFa04Bf454466";
+  const vatAddress = "0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B";
 
   const vow = new Vow({
     vowAddress: envs.VOW_ADDRESS,

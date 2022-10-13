@@ -4,6 +4,8 @@ import {
   Vow as VowContract,
   Vat__factory,
   Vat as VatContract,
+  Flapper as FlapperContract,
+  Flapper__factory,
 } from "../../types/ethers-contracts/index";
 import { HEAL } from "./constants";
 
@@ -13,7 +15,6 @@ export interface VowConfig {
   signer: ethers.Wallet;
 }
 
-// Vowコントラクトの状態
 interface VowStatus {
   fixedAuctionSize: BigNumber; // bump
   auctionSizeBuffer: BigNumber; // hump
@@ -23,6 +24,8 @@ interface VowStatus {
   unbackedDai: BigNumber; // sin
 }
 
+// Surplusオークションを開始させるBot
+// オークションは負債が0かつ、十分な余剰DAIが存在するときに開始できる
 export default class Vow {
   readonly vow: VowContract;
   readonly vat: VatContract;
@@ -49,9 +52,20 @@ export default class Vow {
         const vowStatus = await this._getVowStatus();
         const canFlap = Vow.canFlap(vowStatus);
         if (canFlap) {
+          console.log("Surplus auction can be started.");
           this._startAuction();
         }
       }
+      console.log("Listening to flapper events...");
+      const flapperAddress = await this.vow.flapper();
+      const flapper = Flapper__factory.connect(flapperAddress, this.signer);
+      const kickEventFilter =
+        flapper.filters["Kick(uint256,uint256,uint256)"]();
+      flapper.on(kickEventFilter, async (id, lot, bid) => {
+        console.log(
+          `Surplus auction ${id} started. Amount: ${lot}, bid: ${bid}`
+        );
+      });
     });
   }
 
@@ -119,7 +133,7 @@ export default class Vow {
     console.log({
       surplus: availableDai.sub(currentDebt).toString(),
       auctionSizeBuffer: auctionSizeBuffer.toString(),
-      debtWithBuffer: unbackedDai.sub(queuedDebt).sub(onAuctionDebt).toString(),
+      debt: unbackedDai.sub(queuedDebt).sub(onAuctionDebt).toString(),
     });
   }
 }
