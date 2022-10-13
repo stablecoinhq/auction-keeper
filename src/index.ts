@@ -2,27 +2,7 @@ import { ethers } from "ethers";
 
 import Dog from "./dog";
 import Clip from "./clip";
-
-const ENV_PATH = process.env.ENV_PATH ? process.env.ENV_PATH : ".env";
-
-console.log(ENV_PATH);
-require("dotenv").config({ path: ENV_PATH });
-
-const ilks = JSON.parse(process.env.ILKS ? process.env.ILKS : "[]");
-
-
-const toBlock: number | "latest" = (process.env.TO_BLOCK! === "latest") ? "latest" : parseInt(process.env.TO_BLOCK!);
-
-const envs = {
-  RPC_HOST: process.env.RPC_HOST!,
-  DOG_ADDRESS: process.env.DOG_ADDRESS!,
-  MNEMONIC: process.env.MNEMONIC!,
-  FROM_BLOCK: parseInt(process.env.FROM_BLOCK!),
-  TO_BLOCK: toBlock,
-  ILKS: ilks,
-};
-
-console.log(envs);
+import { getEnvs } from "./config";
 
 process.on("SIGINT", function () {
   console.log("\nGracefully shutting down from SIGINT (Ctrl-C)");
@@ -31,6 +11,14 @@ process.on("SIGINT", function () {
 });
 
 async function main() {
+  const ENV_PATH = process.env.ENV_PATH || ".env";
+
+  require("dotenv").config({ path: ENV_PATH });
+
+  const envs = getEnvs();
+
+  console.log(envs);
+
   // singletonにする
   const provider = new ethers.providers.JsonRpcProvider(envs.RPC_HOST);
   const signer = ethers.Wallet.fromMnemonic(envs.MNEMONIC).connect(provider);
@@ -43,42 +31,55 @@ async function main() {
     toBlock: envs.TO_BLOCK,
   });
 
-  const clipAddresses = await dog.getClipAddresses(envs.ILKS);
+  console.log(envs.RUN_CLIP);
+  
   const vatAddress = await dog.getVatAddress();
 
-  console.log({
-    RPC_HOST: envs.RPC_HOST,
-    DOG_ADDRESS: envs.DOG_ADDRESS,
-    SIGNER_ADDRESS: signer.address,
-    VAT_ADDRESS: vatAddress,
-    CLIP_ADDRESSES: clipAddresses,
-  });
+  if (envs.RUN_CLIP === true) {
+    const clipAddresses = await dog.getClipAddresses(envs.ILKS);
 
-  dog.start();
+    console.log({
+      RPC_HOST: envs.RPC_HOST,
+      DOG_ADDRESS: envs.DOG_ADDRESS,
+      SIGNER_ADDRESS: signer.address,
+      VAT_ADDRESS: vatAddress,
+      CLIP_ADDRESSES: clipAddresses,
+    });
 
-  // const clips = clipAddresses.map(({ ilk, address }) => {
-  //   return new Clip({
-  //     clipAddress: address,
-  //     vatAddress: vatAddress,
-  //     ilk: ilk,
-  //     signer: signer,
-  //   });
-  // });
+    const clips = clipAddresses.map(({ ilk, address }) => {
+      return new Clip({
+        clipAddress: address,
+        vatAddress: vatAddress,
+        ilk: ilk,
+        signer: signer,
+      });
+    });
 
-  // // これは事前にやっておく必要がある
-  // await Promise.all(clips.map(async (clip) => {
-  //   clip.hope();
-  // }))
+    // これは事前にやっておく必要がある
+    await Promise.all(
+      clips.map(async (clip) => {
+        clip.hope();
+      })
+    );
 
-  // Promise.all(
-  //   [...clips, dog].map((v) => {
-  //     if (v instanceof Clip) {
-  //       v.start();
-  //     } else if (v instanceof Dog) {
-  //       v.start();
-  //     }
-  //   })
-  // );
+    Promise.all(
+      [...clips, dog].map((v) => {
+        if (v instanceof Clip) {
+          v.start();
+        } else if (v instanceof Dog) {
+          v.start();
+        }
+      })
+    );
+  } else {
+    console.log({
+      RPC_HOST: envs.RPC_HOST,
+      DOG_ADDRESS: envs.DOG_ADDRESS,
+      SIGNER_ADDRESS: signer.address,
+      VAT_ADDRESS: vatAddress,
+    });
+    dog.start();
+  }
 }
 
 main().catch((e) => {

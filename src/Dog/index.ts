@@ -229,12 +229,13 @@ export default class Dog {
 
         switch (event) {
           case Events.fold:
+            // foldによって価格が変動した場合には調べる
             console.log(`Price of ${ilk} changed, checking vaults`);
             const targets = this.urnByIlks.get(ilk) || new Set();
             this._checkUrnsByIlk(new Map().set(ilk, targets));
             break;
           case Events.file:
-            // spotによって価格が変動した場合には、変動した通貨に関するVaultを調べる
+            // spotによって担保率が変動した際には、変動した通貨に関するVaultを調べる
             if (arg2 === SPOT) {
               console.log(`Safey margin of ${ilk} changed, checking vaults`);
               const targets = this.urnByIlks.get(ilk) || new Set();
