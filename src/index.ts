@@ -10,16 +10,19 @@ require("dotenv").config({ path: ENV_PATH });
 
 const ilks = JSON.parse(process.env.ILKS ? process.env.ILKS : "[]");
 
+
+const toBlock: number | "latest" = (process.env.TO_BLOCK! === "latest") ? "latest" : parseInt(process.env.TO_BLOCK!);
+
 const envs = {
   RPC_HOST: process.env.RPC_HOST!,
   DOG_ADDRESS: process.env.DOG_ADDRESS!,
   MNEMONIC: process.env.MNEMONIC!,
   FROM_BLOCK: parseInt(process.env.FROM_BLOCK!),
-  TO_BLOCK: (process.env.TO_BLOCK
-    ? parseInt(process.env.TO_BLOCK)
-    : "latest") as number | "latest",
+  TO_BLOCK: toBlock,
   ILKS: ilks,
 };
+
+console.log(envs);
 
 process.on("SIGINT", function () {
   console.log("\nGracefully shutting down from SIGINT (Ctrl-C)");
@@ -51,29 +54,31 @@ async function main() {
     CLIP_ADDRESSES: clipAddresses,
   });
 
-  const clips = clipAddresses.map(({ ilk, address }) => {
-    return new Clip({
-      clipAddress: address,
-      vatAddress: vatAddress,
-      ilk: ilk,
-      signer: signer,
-    });
-  });
+  dog.start();
 
-  // これは事前にやっておく必要がある
-  await Promise.all(clips.map(async (clip) => {
-    clip.hope();
-  }))
+  // const clips = clipAddresses.map(({ ilk, address }) => {
+  //   return new Clip({
+  //     clipAddress: address,
+  //     vatAddress: vatAddress,
+  //     ilk: ilk,
+  //     signer: signer,
+  //   });
+  // });
 
-  Promise.all(
-    [...clips, dog].map((v) => {
-      if (v instanceof Clip) {
-        v.start();
-      } else if (v instanceof Dog) {
-        v.start();
-      }
-    })
-  );
+  // // これは事前にやっておく必要がある
+  // await Promise.all(clips.map(async (clip) => {
+  //   clip.hope();
+  // }))
+
+  // Promise.all(
+  //   [...clips, dog].map((v) => {
+  //     if (v instanceof Clip) {
+  //       v.start();
+  //     } else if (v instanceof Dog) {
+  //       v.start();
+  //     }
+  //   })
+  // );
 }
 
 main().catch((e) => {

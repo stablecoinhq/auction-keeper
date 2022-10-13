@@ -13,21 +13,66 @@ import {
   UrnsByIlk,
   groupUrns,
 } from "./event-parser";
+import { Events, VOID_ADDRESS, SPOT } from "./constants";
 
-enum Events {
-  fork = "0x870c616d00000000000000000000000000000000000000000000000000000000",
-  frob = "0x7608870300000000000000000000000000000000000000000000000000000000",
-  file = "0x1a0b287e00000000000000000000000000000000000000000000000000000000",
-  fold = "0xb65337df00000000000000000000000000000000000000000000000000000000",
+interface VatIlkInfo {
+  Art: BigNumber;
+  rate: BigNumber;
+  spot: BigNumber;
+  dust: BigNumber;
 }
 
-const SPOT =
-  "0x73706f7400000000000000000000000000000000000000000000000000000000";
+interface DogIlkInfo {
+  clip: string;
+  chop: BigNumber;
+  hole: BigNumber;
+  dirt: BigNumber;
+}
 
-const voidAddress = "0x0000000000000000000000000000000000000000";
+interface UrnInfo {
+  art: BigNumber;
+  ink: BigNumber;
+}
 
-// Split
-const SPLIT_BY = 10000;
+interface IlkInfo {
+  Art: BigNumber;
+  rate: BigNumber;
+  spot: BigNumber;
+  dust: BigNumber;
+}
+
+function displayUrnInfo(
+  ilk: string,
+  urnAddress: string,
+  ilkInfo: IlkInfo,
+  urnInfo: UrnInfo
+) {
+  const { art, ink } = urnInfo;
+  const { rate, spot } = ilkInfo;
+  // 現在の負債(DAI)
+  const debt = art.mul(rate);
+  // 許容可能な負債(DAI)
+  const maximumAllowedDebt = ink.mul(spot);
+
+  // 許容可能な負債 - 現在の負債 = 精算までのDAI
+  const untilLiquidation = maximumAllowedDebt.sub(debt);
+  const normalized = {
+    ilk: ilk,
+    address: urnAddress,
+    ink: displayUnits(ink, unitContants.WAD),
+    art: displayUnits(art, unitContants.WAD),
+    debt: displayUnits(debt, unitContants.WAD.mul(unitContants.RAY)),
+    maximumAllowedDebt: displayUnits(
+      maximumAllowedDebt,
+      unitContants.WAD.mul(unitContants.RAY)
+    ),
+    untilLiquidation: displayUnits(
+      untilLiquidation,
+      unitContants.WAD.mul(unitContants.RAY)
+    ),
+  };
+  console.log(normalized);
+}
 
 // ブロックを一定数分割する
 // 過去のイベントをまとめて取得しようとすると失敗するため
@@ -35,6 +80,7 @@ function splitBlocks(
   from: number,
   latest: number
 ): { from: number; to: number }[] {
+  const SPLIT_BY = 10000;
   let ls: { from: number; to: number }[] = [];
   for (let i = from; i <= latest; i += SPLIT_BY) {
     const from = i;
@@ -64,11 +110,11 @@ export default class Dog {
   readonly fromBlock: number;
   readonly ilks: string[];
   readonly toBlock: number | "latest";
-  private signer: ethers.Wallet;
+  private readonly signer: ethers.Wallet;
   private urnByIlks: UrnsByIlk;
-  signerAddress: string;
-  Dirt: BigNumber = BigNumber.from(0);
-  Hole: BigNumber = BigNumber.from(0);
+  readonly signerAddress: string;
+  readonly Dirt: Promise<BigNumber>;
+  readonly Hole: Promise<BigNumber>;
 
   constructor(config: DogConfig) {
     const { dogAddress, signer, fromBlock, toBlock, ilks } = config;
@@ -84,6 +130,8 @@ export default class Dog {
     this.vatContract = this.dog
       .vat()
       .then((v) => Vat__factory.connect(v, this.signer));
+    this.Dirt = this.dog.Dirt();
+    this.Hole = this.dog.Hole();
   }
 
   // Clipアドレス一覧を返却
@@ -117,8 +165,6 @@ export default class Dog {
       return console.log(`Dog ${this.dog.address} is not live`);
     }
 
-    this.Dirt = await this.dog.Dirt();
-    this.Hole = await this.dog.Hole();
     console.log("Fetching past events...");
     const latestBlock =
       this.toBlock === "latest"
@@ -144,12 +190,11 @@ export default class Dog {
 
     const barkResult = await Promise.all(
       Array.from(this.urnByIlks.entries()).map(async ([ilk, urnAddresses]) => {
-        const addrs = Array.from(urnAddresses);
-        const unsafeVaults = await this._checkUrns(ilk, addrs);
+        const addrs: string[] = Array.from(urnAddresses);
+        const unsafeVaults: CanBark[] = await this._checkUrns(ilk, addrs);
         const barkResult = unsafeVaults.reduce(async (prev, unsafeVault) => {
           const result = await prev;
           const { ilk, address } = unsafeVault;
-          console.log(`Barking at ilk: ${ilk}, address: ${address}`);
           const barkResult = await this._bark(ilk, address);
           if (barkResult) {
             console.log("Bark success");
@@ -177,37 +222,41 @@ export default class Dog {
       const eventFilter =
         vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](event);
       vat.on(eventFilter, async (...args) => {
-        const [, arg1, arg2, , , logNoteEvent] = args;
-        const ilk = arg1;
+        const [rawEvent] = args;
+        const parsedTopics = rawEvent as any as { topics: string[] };
+        const [, ilk, arg2] = parsedTopics.topics;
+        const eventRawData = rawEvent as any as { data: string };
+
         switch (event) {
           case Events.fold:
+            console.log(`Price of ${ilk} changed, checking vaults`);
             const targets = this.urnByIlks.get(ilk) || new Set();
-            this._check(new Map().set(ilk, targets));
+            this._checkUrnsByIlk(new Map().set(ilk, targets));
             break;
           case Events.file:
             // spotによって価格が変動した場合には、変動した通貨に関するVaultを調べる
             if (arg2 === SPOT) {
+              console.log(`Safey margin of ${ilk} changed, checking vaults`);
               const targets = this.urnByIlks.get(ilk) || new Set();
-              this._check(new Map().set(ilk, targets));
+              this._checkUrnsByIlk(new Map().set(ilk, targets));
             }
             break;
           default:
-            const urnsByIlk = parseEventAndGroup(logNoteEvent.address);
+            const urnsByIlk = parseEventAndGroup(eventRawData.data);
             this.urnByIlks = groupUrns([this.urnByIlks, urnsByIlk]);
-            this._check(urnsByIlk);
+            this._checkUrnsByIlk(urnsByIlk);
             break;
         }
       });
     });
   }
 
-  private async _check(urnsByIlk: UrnsByIlk) {
+  private async _checkUrnsByIlk(urnsByIlk: UrnsByIlk) {
     for (const [ilk, urnAddresses] of urnsByIlk.entries()) {
       const addrs = Array.from(urnAddresses);
       const unsafeVaults = await this._checkUrns(ilk, addrs);
       console.log("Unsafe vaults", unsafeVaults);
       for (const { ilk, address } of unsafeVaults) {
-        console.log(`Barking at: ${ilk}, ${address}`);
         await this._bark(ilk, address);
       }
     }
@@ -217,12 +266,11 @@ export default class Dog {
     ilk: string,
     address: string
   ): Promise<ethers.ContractTransaction | undefined> {
-    try {
-      return this.dog.bark(ilk, address, this.signer.address);
-    } catch (e) {
-      console.log(`Bark failed with reason ${e}`);
+    console.log(`Barking at ilk: ${ilk}, address: ${address}`);
+    return this.dog.bark(ilk, address, this.signer.address).catch((e) => {
+      console.log(`Barking failed: ${e.error.reason}`);
       return undefined;
-    }
+    });
   }
 
   private async _checkUrns(
@@ -231,22 +279,18 @@ export default class Dog {
     urnAddresses: string[]
   ): Promise<CanBark[]> {
     const vat = await this.vatContract;
+    const Hole = await this.Hole;
+    const Dirt = await this.Dirt;
     const vatIlkInfo = await vat.ilks(ilk);
     const dogIlk = await this.dog.ilks(ilk);
     const { clip, hole } = dogIlk;
     // Clipがないなら何もしない
     // holeが0なら何もしない
-    if (clip === voidAddress || hole.eq(BigNumber.from(0))) {
+    if (clip === VOID_ADDRESS || hole.eq(BigNumber.from(0))) {
       return [];
     }
 
-    // 監視対象のilkでないなら何もしない
-    if (!this.ilks.find((v) => v === ilk)) {
-      return [];
-    }
-
-    const isLiquidationLimitSafe =
-      this.Hole.gt(this.Dirt) && dogIlk.hole.gt(dogIlk.dirt);
+    const isLiquidationLimitSafe = Hole.gt(Dirt) && dogIlk.hole.gt(dogIlk.dirt);
     // オークションがDAI上限に達している
     if (!isLiquidationLimitSafe) {
       console.log(`Auction has reached it's capacity for ${ilk}`);
@@ -259,13 +303,7 @@ export default class Dog {
         displayUrnInfo(ilk, urnAddress, vatIlkInfo, urnInfo);
         return {
           address: urnAddress,
-          canBark: Dog.canBark(
-            this.Hole,
-            this.Dirt,
-            urnInfo,
-            vatIlkInfo,
-            dogIlk
-          ),
+          canBark: Dog.canBark(Hole, Dirt, urnInfo, vatIlkInfo, dogIlk),
         };
       })
     );
@@ -328,63 +366,4 @@ export default class Dog {
       return isUnsafeVault;
     }
   }
-}
-
-interface VatIlkInfo {
-  Art: BigNumber;
-  rate: BigNumber;
-  spot: BigNumber;
-  dust: BigNumber;
-}
-
-interface DogIlkInfo {
-  clip: string;
-  chop: BigNumber;
-  hole: BigNumber;
-  dirt: BigNumber;
-}
-
-interface UrnInfo {
-  art: BigNumber;
-  ink: BigNumber;
-}
-
-interface IlkInfo {
-  Art: BigNumber;
-  rate: BigNumber;
-  spot: BigNumber;
-  dust: BigNumber;
-}
-
-function displayUrnInfo(
-  ilk: string,
-  urnAddress: string,
-  ilkInfo: IlkInfo,
-  urnInfo: UrnInfo
-) {
-  const { art, ink } = urnInfo;
-  const { rate, spot } = ilkInfo;
-  // 現在の負債(DAI)
-  const debt = art.mul(rate);
-  // 許容可能な負債(DAI)
-  const maximumAllowedDebt = ink.mul(spot);
-
-  // 許容可能な負債 - 現在の負債 = 精算までのDAI
-  const untilLiquidation = maximumAllowedDebt.sub(debt);
-  const normalized = {
-    ilk: ilk,
-    address: urnAddress,
-    ink: displayUnits(ink, unitContants.WAD),
-    art: displayUnits(art, unitContants.WAD),
-    debt: displayUnits(debt, unitContants.WAD.mul(unitContants.RAY)),
-    maximumAllowedDebt: displayUnits(
-      maximumAllowedDebt,
-      unitContants.WAD.mul(unitContants.RAY)
-    ),
-    untilLiquidation: displayUnits(
-      untilLiquidation,
-      unitContants.WAD.mul(unitContants.RAY)
-    ),
-  };
-  console.log(normalized);
 }
