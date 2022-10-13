@@ -35,17 +35,16 @@ docker build . --target=application --tag=auction-keeper:latest
 docker run --rm --name=auction-keeper -v $(pwd)/.env:/app/.env auction-keeper:latest
 ```
 
-TODO:
-
-- Jug が`drip`を読んだ際に担保率が変動した通貨に関する Vault が精算されるか調べる
-- Spot が`poke`を読んだ際に価格が変動した通貨に関する Vault が精算されるか調べる
-
 ### テスト用
 
-### Flap
+Vow アドレス: `0xA950524441892A31ebddF91d3cEEFa04Bf454466`
+Dog アドレス: `0x0E801D84Fa97b50751Dbf25036d067dCf18858bF`
+Vat アドレス: `0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B`
+
+#### Flap
 
 ブロック 9656038 からフォークして 6277547639945879759772735476619734373953489175 heal する
 
-### Flop
+#### Flop
 
 ブロック 9702726 からフォークして 43182088423581837831814105867170163957827142136124 heal する
