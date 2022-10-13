@@ -1,5 +1,4 @@
-// それぞれの関数の対応表
-// 関数シグネチャをkeccakハッシュして最初の4バイトを抜き取ったものに0をパッディングしたもの
+// Each events represents function signatures
 export enum Events {
   fork = "0x870c616d00000000000000000000000000000000000000000000000000000000",
   frob = "0x7608870300000000000000000000000000000000000000000000000000000000",
@@ -12,3 +11,9 @@ export const SPOT =
 
 export const VOID_ADDRESS = "0x0000000000000000000000000000000000000000";
 
+export const BYTES_LENGTH = 64;
+
+export const FUNCTION_SIGNATURES = {
+  FROB: "76088703",
+  FORK: "870c616d",
+};

@@ -25,8 +25,9 @@ interface VowStatus {
   unbackedDai: BigNumber; // sin
 }
 
-// Surplusオークションを開始させるBot
-// オークションは負債が0かつ、十分な余剰DAIが存在するときに開始できる
+// Surplus及びDebtオークションを開始させるBot
+// Surplusオークションは負債が0かつ、十分な余剰DAIが存在するときに開始できる
+// Debtオークションは余剰DAIが0かつ、負債が十分に存在するときに開始できる
 export default class Vow {
   readonly vow: VowContract;
   readonly vat: VatContract;
@@ -50,7 +51,7 @@ export default class Vow {
 
       if (functionSig === HEAL) {
         console.log(`Heal event triggered, checking vow status`);
-        const vowStatus = await this._getVowStatus();
+        const vowStatus = await this._getStatus();
         const canFlap = Vow.canFlap(vowStatus);
         if (canFlap) {
           console.log("Surplus auction can be started.");
@@ -105,7 +106,7 @@ export default class Vow {
     });
   }
 
-  private async _getVowStatus(): Promise<VowStatus> {
+  private async _getStatus(): Promise<VowStatus> {
     // dai
     const availableDai = await this.vat.dai(this.vow.address);
     // sin

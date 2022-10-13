@@ -1,3 +1,4 @@
+import { BYTES_LENGTH, FUNCTION_SIGNATURES } from "./constants";
 /* Vat.solのUrn操作に関するイベントを解析するライブラリ
  */
 
@@ -14,7 +15,8 @@ export function groupUrns(urnsByIlk: UrnsByIlk[]): UrnsByIlk {
   return urnsByIlk.reduce((prev, curr) => {
     for (const [urn, addrs] of curr.entries()) {
       for (const [addr] of addrs.entries()) {
-        const modified = prev.get(urn)?.add(addr) || new Set<string>().add(addr);
+        const modified =
+          prev.get(urn)?.add(addr) || new Set<string>().add(addr);
         prev.set(urn, modified);
       }
     }
@@ -23,13 +25,6 @@ export function groupUrns(urnsByIlk: UrnsByIlk[]): UrnsByIlk {
 }
 
 export type UrnsByIlk = Map<string, Set<string>>;
-
-const BYTES_LENGTH = 64;
-
-const FUNCTION_SIGNATURES = {
-  FROB: "76088703",
-  FORK: "870c616d",
-};
 
 function toHex(data: string): string {
   return `0x${data}`;
@@ -56,9 +51,7 @@ function parseRawEventMap(rawEvent: string, urns: UrnsByIlk): UrnsByIlk {
   const ilk = toIlk(context.slice(0, BYTES_LENGTH));
   const addrs = urns.get(ilk) || new Set();
   if (functionSignature === FUNCTION_SIGNATURES.FROB) {
-    const urnAddress = toAddress(
-      context.slice(BYTES_LENGTH, BYTES_LENGTH * 2)
-    );
+    const urnAddress = toAddress(context.slice(BYTES_LENGTH, BYTES_LENGTH * 2));
     return urns.set(ilk, addrs.add(urnAddress));
   } else if (functionSignature === FUNCTION_SIGNATURES.FORK) {
     const sourceAddress = toAddress(
@@ -87,9 +80,7 @@ function parseRawEvent(rawEvent: string): UrnKey[] {
   // イベントの第一引数は必ずIlk
   const ilk = toIlk(context.slice(0, BYTES_LENGTH));
   if (functionSignature === FUNCTION_SIGNATURES.FROB) {
-    const urnAddress = toAddress(
-      context.slice(BYTES_LENGTH, BYTES_LENGTH * 2)
-    );
+    const urnAddress = toAddress(context.slice(BYTES_LENGTH, BYTES_LENGTH * 2));
     return [
       {
         ilk: ilk,
