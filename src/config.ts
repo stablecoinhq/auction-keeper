@@ -1,11 +1,12 @@
 export interface Envs {
   RPC_HOST: string;
-  DOG_ADDRESS: string;
   MNEMONIC: string;
   FROM_BLOCK: number;
   TO_BLOCK: number | "latest";
   ILKS: string[];
   RUN_CLIP: boolean;
+  DOG_ADDRESS: string;
+  VOW_ADDRESS: string;
 }
 
 export function getEnvs(): Envs {
@@ -23,6 +24,7 @@ export function getEnvs(): Envs {
   return {
     RPC_HOST: process.env.RPC_HOST!,
     DOG_ADDRESS: process.env.DOG_ADDRESS!,
+    VOW_ADDRESS: process.env.VOW_ADDRESS!,
     MNEMONIC: process.env.MNEMONIC!,
     FROM_BLOCK: parseInt(process.env.FROM_BLOCK!),
     TO_BLOCK: toBlock,

@@ -3,6 +3,7 @@ import { ethers } from "ethers";
 import Dog from "./dog";
 import Clip from "./clip";
 import { getEnvs } from "./config";
+import Vow from "./vow";
 
 process.on("SIGINT", function () {
   console.log("\nGracefully shutting down from SIGINT (Ctrl-C)");
@@ -26,14 +27,17 @@ async function main() {
     dogAddress: envs.DOG_ADDRESS,
     ilks: envs.ILKS,
     signer: signer,
-    provider: provider,
     fromBlock: envs.FROM_BLOCK,
     toBlock: envs.TO_BLOCK,
   });
 
-  console.log(envs.RUN_CLIP);
-  
   const vatAddress = await dog.getVatAddress();
+
+  const vow = new Vow({
+    vowAddress: envs.VOW_ADDRESS,
+    vatAddress: vatAddress,
+    signer,
+  });
 
   if (envs.RUN_CLIP === true) {
     const clipAddresses = await dog.getClipAddresses(envs.ILKS);
@@ -41,6 +45,7 @@ async function main() {
     console.log({
       RPC_HOST: envs.RPC_HOST,
       DOG_ADDRESS: envs.DOG_ADDRESS,
+      VOW_ADDRESS: envs.VOW_ADDRESS,
       SIGNER_ADDRESS: signer.address,
       VAT_ADDRESS: vatAddress,
       CLIP_ADDRESSES: clipAddresses,
@@ -63,10 +68,12 @@ async function main() {
     );
 
     Promise.all(
-      [...clips, dog].map((v) => {
+      [...clips, dog, vow].map((v) => {
         if (v instanceof Clip) {
           v.start();
         } else if (v instanceof Dog) {
+          v.start();
+        } else if (v instanceof Vow) {
           v.start();
         }
       })
@@ -75,10 +82,12 @@ async function main() {
     console.log({
       RPC_HOST: envs.RPC_HOST,
       DOG_ADDRESS: envs.DOG_ADDRESS,
+      VOW_ADDRESS: envs.VOW_ADDRESS,
       SIGNER_ADDRESS: signer.address,
       VAT_ADDRESS: vatAddress,
     });
     dog.start();
+    vow.start();
   }
 }
 

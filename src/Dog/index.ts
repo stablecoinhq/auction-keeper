@@ -98,7 +98,6 @@ export interface CanBark {
 export interface DogConfig {
   dogAddress: string;
   signer: ethers.Wallet;
-  provider: ethers.providers.JsonRpcProvider;
   fromBlock: number;
   ilks: string[];
   toBlock: number | "latest";
