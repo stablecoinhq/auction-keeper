@@ -4,5 +4,6 @@
 export { Clip__factory } from "./Clip__factory";
 export { Dog__factory } from "./Dog__factory";
 export { Flapper__factory } from "./Flapper__factory";
+export { Flopper__factory } from "./Flopper__factory";
 export { Vat__factory } from "./Vat__factory";
 export { Vow__factory } from "./Vow__factory";

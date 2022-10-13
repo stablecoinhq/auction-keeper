@@ -4,11 +4,13 @@
 export type { Clip } from "./Clip";
 export type { Dog } from "./Dog";
 export type { Flapper } from "./Flapper";
+export type { Flopper } from "./Flopper";
 export type { Vat } from "./Vat";
 export type { Vow } from "./Vow";
 export * as factories from "./factories";
 export { Clip__factory } from "./factories/Clip__factory";
 export { Dog__factory } from "./factories/Dog__factory";
 export { Flapper__factory } from "./factories/Flapper__factory";
+export { Flopper__factory } from "./factories/Flopper__factory";
 export { Vat__factory } from "./factories/Vat__factory";
 export { Vow__factory } from "./factories/Vow__factory";
