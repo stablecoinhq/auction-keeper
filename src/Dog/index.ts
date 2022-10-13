@@ -95,6 +95,7 @@ export interface CanBark {
   address: string;
 }
 
+// Config
 export interface DogConfig {
   dogAddress: string;
   signer: ethers.Wallet;
@@ -103,6 +104,7 @@ export interface DogConfig {
   toBlock: number | "latest";
 }
 
+// Collateralオークションを開始する
 export default class Dog {
   readonly vatContract: Promise<VatContract>;
   readonly dog: DogContract;
@@ -164,6 +166,11 @@ export default class Dog {
       return console.log(`Dog ${this.dog.address} is not live`);
     }
 
+    await this._lookupFromPastEvents();
+    this._listenToEvents();
+  }
+
+  private async _lookupFromPastEvents(): Promise<void> {
     console.log("Fetching past events...");
     const latestBlock =
       this.toBlock === "latest"
@@ -187,34 +194,17 @@ export default class Dog {
 
     this.urnByIlks = groupUrns(urns);
 
-    const barkResult = await Promise.all(
-      Array.from(this.urnByIlks.entries()).map(async ([ilk, urnAddresses]) => {
-        const addrs: string[] = Array.from(urnAddresses);
-        const unsafeVaults: CanBark[] = await this._checkUrns(ilk, addrs);
-        const barkResult = unsafeVaults.reduce(async (prev, unsafeVault) => {
-          const result = await prev;
-          const { ilk, address } = unsafeVault;
-          const barkResult = await this._bark(ilk, address);
-          if (barkResult) {
-            console.log("Bark success");
-            return [...result, unsafeVault];
-          } else {
-            console.log("Bark was not successful");
-            return result;
-          }
-        }, Promise.resolve([]) as Promise<CanBark[]>);
-        return barkResult;
-      })
-    );
+    const barkResult = await this._checkUrnsByIlk(this.urnByIlks);
 
-    barkResult.flat().forEach(({ ilk, address }) => {
+    barkResult.forEach(({ ilk, address }) => {
       console.log(`Barked at ilk: ${ilk}, address: ${address}`);
     });
-
+  }
+  private async _listenToEvents(): Promise<void> {
     if (this.toBlock !== "latest") {
       return;
     }
-
+    const vat = await this.vatContract;
     console.log("Start listening to ongoing events...");
 
     [Events.fold, Events.fork, Events.frob, Events.file].map(async (event) => {
@@ -251,15 +241,28 @@ export default class Dog {
     });
   }
 
-  private async _checkUrnsByIlk(urnsByIlk: UrnsByIlk) {
-    for (const [ilk, urnAddresses] of urnsByIlk.entries()) {
-      const addrs = Array.from(urnAddresses);
-      const unsafeVaults = await this._checkUrns(ilk, addrs);
-      console.log("Unsafe vaults", unsafeVaults);
-      for (const { ilk, address } of unsafeVaults) {
-        await this._bark(ilk, address);
-      }
-    }
+  private async _checkUrnsByIlk(urnsByIlk: UrnsByIlk): Promise<CanBark[]> {
+    const result = await Promise.all(
+      Array.from(urnsByIlk.entries()).map(async ([ilk, urnAddresses]) => {
+        const addrs: string[] = Array.from(urnAddresses);
+        const unsafeVaults: CanBark[] = await this._checkUrns(ilk, addrs);
+        const barkResult = unsafeVaults.reduce(async (prev, unsafeVault) => {
+          const result = await prev;
+          const { ilk, address } = unsafeVault;
+          const barkResult = await this._bark(ilk, address);
+          if (barkResult) {
+            console.log("Bark success");
+            return [...result, unsafeVault];
+          } else {
+            console.log("Bark was not successful");
+            return result;
+          }
+        }, Promise.resolve([]) as Promise<CanBark[]>);
+        return barkResult;
+      })
+    );
+
+    return result.flat();
   }
 
   private async _bark(

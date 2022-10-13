@@ -9,12 +9,14 @@ import {
 } from "../../types/ethers-contracts/index";
 import { HEAL } from "./constants";
 
+// Config
 export interface VowConfig {
-  vowAddress: string;
-  vatAddress: string;
-  signer: ethers.Wallet;
+  vowAddress: string; // Vowコントラクトのアドレス
+  vatAddress: string; // Vatアドレスのアドレス
+  signer: ethers.Wallet; // Signer
 }
 
+// Vowコントラクトの状態
 interface VowStatus {
   fixedDebtAuctionSize: BigNumber; // sump
   fixedSurplusAuctionSize: BigNumber; // bump
@@ -41,6 +43,13 @@ export default class Vow {
   }
 
   async start() {
+    this._listenToVow();
+    this._listenToSurplusAuction();
+    this._listenToDebtAuction();
+  }
+
+  // vowコントラクトのイベントをListenし、オークションが開始可能か調べる
+  private async _listenToVow() {
     console.log("Listening to heal events...");
     const healEventFilter =
       this.vow.filters["LogNote(bytes4,address,bytes32,bytes32,bytes)"](HEAL);
@@ -51,7 +60,7 @@ export default class Vow {
 
       if (functionSig === HEAL) {
         console.log(`Heal event triggered, checking vow status`);
-        const vowStatus = await this._getStatus();
+        const vowStatus = await this._getVowStatus();
         const canFlap = Vow.canFlap(vowStatus);
         if (canFlap) {
           console.log("Surplus auction can be started.");
@@ -63,50 +72,64 @@ export default class Vow {
           this._startDebtAuction();
         }
       }
-      const flapperAddress = await this.vow.flapper();
-      const flapper = Flapper__factory.connect(flapperAddress, this.signer);
-      const flapperEventFilter =
-        flapper.filters["Kick(uint256,uint256,uint256)"]();
-      flapper.on(flapperEventFilter, async (id, lot, bid) => {
-        console.log(`Surplus auction ${id} started.`);
-        console.log({
-          id: id.toString(),
-          amount: lot.toString(),
-          bid: bid.toString(),
-        });
-      });
+    });
+  }
 
-      const flopperAddress = await this.vow.flopper();
-      const flopper = Flopper__factory.connect(flopperAddress, this.signer);
-      const flopperEventFilter =
-        flopper.filters["Kick(uint256,uint256,uint256,address)"]();
-      flopper.on(flopperEventFilter, async (id, lot, bid, bidder) => {
-        console.log(`Debt auction ${id} started.`);
-        console.log({
-          id: id.toString(),
-          amount: lot.toString(),
-          bidder: bidder,
-          bid: bid.toString(),
-        });
+  // flapperコントラクトのイベントをListenし、Surplusオークションが開始されたか調べる
+  private async _listenToSurplusAuction() {
+    const flapperAddress = await this.vow.flapper();
+    const flapper = Flapper__factory.connect(flapperAddress, this.signer);
+    const flapperEventFilter =
+      flapper.filters["Kick(uint256,uint256,uint256)"]();
+    flapper.on(flapperEventFilter, async (id, lot, bid) => {
+      console.log(`Surplus auction ${id} started.`);
+      console.log({
+        id: id.toString(),
+        amount: lot.toString(),
+        bid: bid.toString(),
       });
     });
   }
 
+  // flopperコントラクトのイベントをListenし、Debtオークションが開始されたか調べる
+  private async _listenToDebtAuction() {
+    const flopperAddress = await this.vow.flopper();
+    const flopper = Flopper__factory.connect(flopperAddress, this.signer);
+    const flopperEventFilter =
+      flopper.filters["Kick(uint256,uint256,uint256,address)"]();
+    flopper.on(flopperEventFilter, async (id, lot, bid, bidder) => {
+      console.log(`Debt auction ${id} started.`);
+      console.log({
+        id: id.toString(),
+        amount: lot.toString(),
+        bidder: bidder,
+        bid: bid.toString(),
+      });
+    });
+  }
+
+  // Surplusオークションを開始する
   private async _startSurplusAuction() {
     console.log("Starting surplus auction.");
     this.vow.flap().catch((e) => {
-      console.log(`Auction cannot be started with reason: ${e.error.reason}`);
+      console.log(
+        ` Surplus auction cannot be started with reason: ${e.error.reason}`
+      );
     });
   }
 
+  // Debtオークションを開始する
   private async _startDebtAuction() {
     console.log("Starting debt auction.");
     this.vow.flop().catch((e) => {
-      console.log(`Auction cannot be started with reason: ${e.error.reason}`);
+      console.log(
+        `Debt auction cannot be started with reason: ${e.error.reason}`
+      );
     });
   }
 
-  private async _getStatus(): Promise<VowStatus> {
+  // Vowコントラクトの状態を取得する
+  private async _getVowStatus(): Promise<VowStatus> {
     // dai
     const availableDai = await this.vat.dai(this.vow.address);
     // sin
