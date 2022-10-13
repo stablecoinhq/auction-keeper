@@ -90,9 +90,10 @@ function splitBlocks(
   return ls;
 }
 
+// 精算可能Vaultの情報
 export interface CanBark {
-  ilk: string;
-  address: string;
+  ilk: string; // 通貨
+  address: string; // Vaultのアドレス
 }
 
 // Config
@@ -100,28 +101,23 @@ export interface DogConfig {
   dogAddress: string;
   signer: ethers.Wallet;
   fromBlock: number;
-  ilks: string[];
   toBlock: number | "latest";
 }
 
 // Collateralオークションを開始する
 export default class Dog {
-  readonly vatContract: Promise<VatContract>;
-  readonly dog: DogContract;
-  readonly fromBlock: number;
-  readonly ilks: string[];
-  readonly toBlock: number | "latest";
-  private readonly signer: ethers.Wallet;
-  private urnByIlks: UrnsByIlk;
-  readonly signerAddress: string;
-  readonly Dirt: Promise<BigNumber>;
-  readonly Hole: Promise<BigNumber>;
+  readonly vatContract: Promise<VatContract>; // Vatコントラクト
+  readonly dog: DogContract; // Dogコントラクト
+  readonly fromBlock: number; // 開始ブロック
+  readonly toBlock: number | "latest"; // 最後のブロック、最新までの場合は"latest"
+  private readonly signer: ethers.Wallet; // ウォレット
+  private urnByIlks: UrnsByIlk; // ilk毎に区分されたVault
+  readonly signerAddress: string; // ウォレットのアドレス
+  readonly Dirt: Promise<BigNumber>; // オークション数量
+  readonly Hole: Promise<BigNumber>; // Collateralオークション総数量
 
   constructor(config: DogConfig) {
-    const { dogAddress, signer, fromBlock, toBlock, ilks } = config;
-    this.ilks = ilks.map((v) => {
-      return v.toLowerCase();
-    });
+    const { dogAddress, signer, fromBlock, toBlock } = config;
     this.signer = signer;
     this.signerAddress = this.signer.address;
     this.fromBlock = fromBlock;
@@ -149,6 +145,8 @@ export default class Dog {
       })
     );
   }
+  
+  // Vatコントラクトのアドレスを返却する
   async getVatAddress() {
     return (await this.vatContract).address;
   }
@@ -170,6 +168,7 @@ export default class Dog {
     this._listenToEvents();
   }
 
+  // 過去のイベントを参照し、Vaultを取得する
   private async _lookupFromPastEvents(): Promise<void> {
     console.log("Fetching past events...");
     const latestBlock =
@@ -180,12 +179,9 @@ export default class Dog {
 
     const urns = await Promise.all(
       bunch.map(async ({ from, to }) => {
-        console.log(
-          `Fetching events from block ${from.toLocaleString()} to ${to.toLocaleString()}`
-        );
-        return [Events.fork, Events.frob].reduce(async (prev, currentEvent) => {
+        return [Events.fork, Events.frob].reduce(async (prev, event) => {
           const prevs = await prev;
-          const eventRawData = await this.getPastEvents(from, to, currentEvent);
+          const eventRawData = await this._getPastEvents(from, to, event);
           const urnsByIlk = parseEventsAndGroup(eventRawData, prevs);
           return urnsByIlk;
         }, Promise.resolve(new Map()) as Promise<UrnsByIlk>);
@@ -200,6 +196,8 @@ export default class Dog {
       console.log(`Barked at ilk: ${ilk}, address: ${address}`);
     });
   }
+
+  // 現在のイベントを取得する
   private async _listenToEvents(): Promise<void> {
     if (this.toBlock !== "latest") {
       return;
@@ -240,7 +238,8 @@ export default class Dog {
       });
     });
   }
-
+  
+  // 指定された通貨とそのVaultを調べる
   private async _checkUrnsByIlk(urnsByIlk: UrnsByIlk): Promise<CanBark[]> {
     const result = await Promise.all(
       Array.from(urnsByIlk.entries()).map(async ([ilk, urnAddresses]) => {
@@ -249,7 +248,7 @@ export default class Dog {
         const barkResult = unsafeVaults.reduce(async (prev, unsafeVault) => {
           const result = await prev;
           const { ilk, address } = unsafeVault;
-          const barkResult = await this._bark(ilk, address);
+          const barkResult = await this._startCollateralAuction(ilk, address);
           if (barkResult) {
             console.log("Bark success");
             return [...result, unsafeVault];
@@ -264,8 +263,9 @@ export default class Dog {
 
     return result.flat();
   }
-
-  private async _bark(
+ 
+  // Collateralオークションを開始する
+  private async _startCollateralAuction(
     ilk: string,
     address: string
   ): Promise<ethers.ContractTransaction | undefined> {
@@ -276,6 +276,7 @@ export default class Dog {
     });
   }
 
+  // 任意のVaultを調べる
   private async _checkUrns(
     this: Dog,
     ilk: string,
@@ -318,11 +319,15 @@ export default class Dog {
       });
   }
 
-  private async getPastEvents(
+  // 指定したブロックの範囲のイベントを取得する
+  private async _getPastEvents(
     from: number,
     to: number | "latest",
     currentEvent: string
   ) {
+    console.log(
+      `Fetching events from block ${from.toLocaleString()} to ${to.toLocaleString()}`
+    );
     const vat = await this.vatContract;
     const eventFilter =
       vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](
@@ -335,6 +340,7 @@ export default class Dog {
     return eventRawData;
   }
 
+  // Vaultの精算可能か検証する
   static canBark(
     Hole: BigNumber,
     Dirt: BigNumber,
