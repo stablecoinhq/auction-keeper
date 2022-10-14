@@ -1,7 +1,4 @@
 import { ethers } from "ethers";
-
-import Dog from "./dog";
-import Clip from "./clip";
 import { getEnvs } from "./config";
 import Vow from "./vow";
 

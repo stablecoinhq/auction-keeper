@@ -7,12 +7,8 @@ import {
 import { BigNumber, constants } from "ethers";
 import { displayUnits, constants as unitContants } from "../units";
 import { ethers } from "ethers";
-import {
-  parseEventsAndGroup,
-  parseEventAndGroup,
-  UrnsByIlk,
-  groupUrns,
-} from "./event-parser";
+import { parseEventsAndGroup, parseEventAndGroup } from "./event-parser";
+import { VaultCollection } from "./vault-collection";
 import { Events, VOID_ADDRESS, SPOT } from "./constants";
 
 interface VatIlkInfo {
@@ -111,7 +107,7 @@ export default class Dog {
   readonly fromBlock: number; // 開始ブロック
   readonly toBlock: number | "latest"; // 最後のブロック、最新までの場合は"latest"
   private readonly signer: ethers.Wallet; // ウォレット
-  private urnByIlks: UrnsByIlk; // ilk毎に区分されたVault
+  private vaultCollection: VaultCollection; // ilk毎に区分されたVault
   readonly signerAddress: string; // ウォレットのアドレス
   readonly Dirt: Promise<BigNumber>; // オークション数量
   readonly Hole: Promise<BigNumber>; // Collateralオークション総数量
@@ -122,7 +118,7 @@ export default class Dog {
     this.signerAddress = this.signer.address;
     this.fromBlock = fromBlock;
     this.toBlock = toBlock;
-    this.urnByIlks = new Map();
+    this.vaultCollection = new VaultCollection();
     this.dog = Dog__factory.connect(dogAddress, this.signer);
     this.vatContract = this.dog
       .vat()
@@ -145,7 +141,7 @@ export default class Dog {
       })
     );
   }
-  
+
   // Vatコントラクトのアドレスを返却する
   async getVatAddress() {
     return (await this.vatContract).address;
@@ -177,20 +173,20 @@ export default class Dog {
         : this.toBlock;
     const bunch = splitBlocks(this.fromBlock, latestBlock);
 
-    const urns = await Promise.all(
+    const vaultCollections = await Promise.all(
       bunch.map(async ({ from, to }) => {
         return [Events.fork, Events.frob].reduce(async (prev, event) => {
           const prevs = await prev;
           const eventRawData = await this._getPastEvents(from, to, event);
           const urnsByIlk = parseEventsAndGroup(eventRawData, prevs);
           return urnsByIlk;
-        }, Promise.resolve(new Map()) as Promise<UrnsByIlk>);
+        }, Promise.resolve(new VaultCollection()));
       })
     );
 
-    this.urnByIlks = groupUrns(urns);
+    this.vaultCollection.merge(vaultCollections);
 
-    const barkResult = await this._checkUrnsByIlk(this.urnByIlks);
+    const barkResult = await this._checkVaultCollections(this.vaultCollection);
 
     barkResult.forEach(({ ilk, address }) => {
       console.log(`Barked at ilk: ${ilk}, address: ${address}`);
@@ -218,52 +214,57 @@ export default class Dog {
           case Events.fold:
             // foldによって価格が変動した場合には調べる
             console.log(`Price of ${ilk} changed, checking vaults`);
-            const targets = this.urnByIlks.get(ilk) || new Set();
-            this._checkUrnsByIlk(new Map().set(ilk, targets));
+            const targets = this.vaultCollection.getByIlk(ilk);
+            this._checkVaultCollections(targets);
             break;
           case Events.file:
             // spotによって担保率が変動した際には、変動した通貨に関するVaultを調べる
             if (arg2 === SPOT) {
               console.log(`Safey margin of ${ilk} changed, checking vaults`);
-              const targets = this.urnByIlks.get(ilk) || new Set();
-              this._checkUrnsByIlk(new Map().set(ilk, targets));
+              const targets = this.vaultCollection.getByIlk(ilk);
+              this._checkVaultCollections(targets);
             }
             break;
           default:
-            const urnsByIlk = parseEventAndGroup(eventRawData.data);
-            this.urnByIlks = groupUrns([this.urnByIlks, urnsByIlk]);
-            this._checkUrnsByIlk(urnsByIlk);
+            const vaultCollection = parseEventAndGroup(eventRawData.data);
+            this.vaultCollection.push(vaultCollection);
+            this._checkVaultCollections(vaultCollection);
             break;
         }
       });
     });
+    return;
   }
-  
+
   // 指定された通貨とそのVaultを調べる
-  private async _checkUrnsByIlk(urnsByIlk: UrnsByIlk): Promise<CanBark[]> {
+  private async _checkVaultCollections(
+    vaultCollections: VaultCollection
+  ): Promise<CanBark[]> {
     const result = await Promise.all(
-      Array.from(urnsByIlk.entries()).map(async ([ilk, urnAddresses]) => {
-        const addrs: string[] = Array.from(urnAddresses);
-        const unsafeVaults: CanBark[] = await this._checkUrns(ilk, addrs);
-        const barkResult = unsafeVaults.reduce(async (prev, unsafeVault) => {
-          const result = await prev;
-          const { ilk, address } = unsafeVault;
-          const barkResult = await this._startCollateralAuction(ilk, address);
-          if (barkResult) {
-            console.log("Bark success");
-            return [...result, unsafeVault];
-          } else {
-            console.log("Bark was not successful");
-            return result;
-          }
-        }, Promise.resolve([]) as Promise<CanBark[]>);
-        return barkResult;
-      })
+      Array.from(vaultCollections.entries()).map(
+        async ([ilk, urnAddresses]) => {
+          const addrs: string[] = Array.from(urnAddresses);
+          const unsafeVaults: CanBark[] = await this._checkUrns(ilk, addrs);
+          const barkResult = unsafeVaults.reduce(async (prev, unsafeVault) => {
+            const result = await prev;
+            const { ilk, address } = unsafeVault;
+            const barkResult = await this._startCollateralAuction(ilk, address);
+            if (barkResult) {
+              console.log("Bark success");
+              return [...result, unsafeVault];
+            } else {
+              console.log("Bark was not successful");
+              return result;
+            }
+          }, Promise.resolve([]) as Promise<CanBark[]>);
+          return barkResult;
+        }
+      )
     );
 
     return result.flat();
   }
- 
+
   // Collateralオークションを開始する
   private async _startCollateralAuction(
     ilk: string,
@@ -324,7 +325,7 @@ export default class Dog {
     from: number,
     to: number | "latest",
     currentEvent: string
-  ) {
+  ): Promise<string[]> {
     console.log(
       `Fetching events from block ${from.toLocaleString()} to ${to.toLocaleString()}`
     );

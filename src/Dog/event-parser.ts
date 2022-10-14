@@ -1,46 +1,26 @@
 import { BYTES_LENGTH, FUNCTION_SIGNATURES } from "./constants";
+import { Vault, VaultCollection } from "./vault-collection";
 /* Vat.solのUrn操作に関するイベントを解析するライブラリ
  */
-
-export type Address = string;
-
-export type Ilk = string;
-
-interface UrnKey {
-  ilk: Ilk;
-  urnAddress: Address;
-}
-
-export function groupUrns(urnsByIlk: UrnsByIlk[]): UrnsByIlk {
-  return urnsByIlk.reduce((prev, curr) => {
-    for (const [urn, addrs] of curr.entries()) {
-      for (const [addr] of addrs.entries()) {
-        const modified =
-          prev.get(urn)?.add(addr) || new Set<string>().add(addr);
-        prev.set(urn, modified);
-      }
-    }
-    return prev;
-  }, new Map() as UrnsByIlk);
-}
-
-export type UrnsByIlk = Map<string, Set<string>>;
 
 function toHex(data: string): string {
   return `0x${data}`;
 }
 
 // 与えられたデータをilkに整形する
-function toIlk(data: string): Ilk {
+function toIlk(data: string): string {
   return toHex(data);
 }
 
 // 与えられたデータをアドレスに整形する
-function toAddress(data: string): Address {
+function toAddress(data: string): string {
   return toHex(data.slice(24));
 }
 
-function parseRawEventMap(rawEvent: string, urns: UrnsByIlk): UrnsByIlk {
+function parseRawEventMap(
+  rawEvent: string,
+  vaultCollection: VaultCollection
+): VaultCollection {
   const functionSignature = rawEvent
     .slice(2) // 0x
     .slice(BYTES_LENGTH * 2) // 最初の64バイトは無視
@@ -49,10 +29,9 @@ function parseRawEventMap(rawEvent: string, urns: UrnsByIlk): UrnsByIlk {
   const context = rawEvent.slice(2).slice(BYTES_LENGTH * 2 + 8);
   // イベントの第一引数は必ずIlk
   const ilk = toIlk(context.slice(0, BYTES_LENGTH));
-  const addrs = urns.get(ilk) || new Set();
   if (functionSignature === FUNCTION_SIGNATURES.FROB) {
     const urnAddress = toAddress(context.slice(BYTES_LENGTH, BYTES_LENGTH * 2));
-    return urns.set(ilk, addrs.add(urnAddress));
+    return vaultCollection.addVault(ilk, urnAddress);
   } else if (functionSignature === FUNCTION_SIGNATURES.FORK) {
     const sourceAddress = toAddress(
       context.slice(BYTES_LENGTH, BYTES_LENGTH * 2)
@@ -61,16 +40,18 @@ function parseRawEventMap(rawEvent: string, urns: UrnsByIlk): UrnsByIlk {
       context.slice(BYTES_LENGTH * 2, BYTES_LENGTH * 3)
     );
     if (sourceAddress === destinationAddress) {
-      return urns.set(ilk, addrs.add(sourceAddress));
+      return vaultCollection.addVault(ilk, sourceAddress);
     } else {
-      return urns.set(ilk, addrs.add(sourceAddress).add(destinationAddress));
+      return vaultCollection
+        .addVault(ilk, sourceAddress)
+        .addVault(ilk, destinationAddress);
     }
   } else {
-    return urns;
+    return vaultCollection;
   }
 }
 
-function parseRawEvent(rawEvent: string): UrnKey[] {
+function parseRawEvent(rawEvent: string): Vault[] {
   const functionSignature = rawEvent
     .slice(2) // 0x
     .slice(BYTES_LENGTH * 2) // 最初の64バイトは無視
@@ -84,7 +65,7 @@ function parseRawEvent(rawEvent: string): UrnKey[] {
     return [
       {
         ilk: ilk,
-        urnAddress: urnAddress,
+        address: urnAddress,
       },
     ];
   } else if (functionSignature === FUNCTION_SIGNATURES.FORK) {
@@ -94,8 +75,8 @@ function parseRawEvent(rawEvent: string): UrnKey[] {
     const destinationAddress = toAddress(
       context.slice(BYTES_LENGTH * 2, BYTES_LENGTH * 3)
     );
-    const sourceUrn = { ilk, urnAddress: sourceAddress };
-    const destUrn = { ilk, urnAddress: destinationAddress };
+    const sourceUrn = { ilk, address: sourceAddress };
+    const destUrn = { ilk, address: destinationAddress };
     if (sourceAddress === destinationAddress) {
       return [sourceUrn];
     } else {
@@ -107,7 +88,7 @@ function parseRawEvent(rawEvent: string): UrnKey[] {
 }
 
 // イベントを解析する(テスト用)
-export function parseEvents(rawEvents: string[]): UrnKey[] {
+export function parseEvents(rawEvents: string[]): Vault[] {
   return rawEvents
     .map((rawEvent) => {
       return parseRawEvent(rawEvent);
@@ -116,18 +97,18 @@ export function parseEvents(rawEvents: string[]): UrnKey[] {
 }
 
 // イベントを解析し、UrnをIlk毎にまとめる
-export function parseEventAndGroup(rawEvent: string): UrnsByIlk {
+export function parseEventAndGroup(rawEvent: string): VaultCollection {
   return parseEventsAndGroup([rawEvent]);
 }
 
 // イベントを解析し、UrnをIlk毎にまとめる
 export function parseEventsAndGroup(
   rawEvents: string[],
-  urnByIlk?: UrnsByIlk
-): UrnsByIlk {
-  const u = urnByIlk ? urnByIlk : new Map();
+  vaultCollection?: VaultCollection
+): VaultCollection {
+  const v = vaultCollection || new VaultCollection();
   const urns = rawEvents.reduce((prev, rawEvent) => {
     return parseRawEventMap(rawEvent, prev);
-  }, u);
+  }, v);
   return urns;
 }
