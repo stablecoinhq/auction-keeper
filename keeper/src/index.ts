@@ -1,9 +1,9 @@
 import { ethers } from "ethers";
 
-import Dog from "./dog";
-import Clip from "./clip";
+import { Dog } from "@auction-keeper/core";
+import { Clip } from "@auction-keeper/core";
 import { getEnvs } from "./config";
-import Vow from "./vow";
+import { Vow } from "@auction-keeper/core";
 
 process.on("SIGINT", function () {
   console.log("\nGracefully shutting down from SIGINT (Ctrl-C)");
@@ -23,7 +23,6 @@ async function main() {
   const signer = ethers.Wallet.fromMnemonic(envs.MNEMONIC).connect(provider);
   const dog = new Dog({
     dogAddress: envs.DOG_ADDRESS,
-    ilks: envs.ILKS,
     signer: signer,
     fromBlock: envs.FROM_BLOCK,
     toBlock: envs.TO_BLOCK,

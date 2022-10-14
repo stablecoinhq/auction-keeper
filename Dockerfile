@@ -6,19 +6,21 @@ WORKDIR "/app"
 COPY package.json .
 COPY package-lock.json .
 COPY tsconfig.json .
+COPY tsconfig.base.json .
+COPY core core
+COPY keeper keeper
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
-COPY src src
-COPY types types
 RUN npm run build
-RUN npm prune --production
+RUN npm prune --omit=dev
 
 FROM node:${NODE_VERSION}-buster-slim AS application
 
 WORKDIR "/app"
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/package-lock.json ./package-lock.json
-COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/core core
+COPY --from=builder /app/keeper keeper
 COPY --from=builder /app/node_modules ./node_modules
 
-CMD [ "node", "./dist/src/index.js"]
+CMD [ "node", "./keeper/dist/src/index.js"]

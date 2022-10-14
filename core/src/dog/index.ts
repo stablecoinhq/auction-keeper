@@ -101,7 +101,7 @@ export interface DogConfig {
 }
 
 // Collateralオークションを開始する
-export default class Dog {
+export class Dog {
   readonly vatContract: Promise<VatContract>; // Vatコントラクト
   readonly dog: DogContract; // Dogコントラクト
   readonly fromBlock: number; // 開始ブロック

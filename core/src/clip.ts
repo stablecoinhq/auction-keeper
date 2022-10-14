@@ -50,7 +50,7 @@ function displayAuctionInfo(auctionInfo: AuctionInfo): void {
 }
 
 // 通貨毎にClipがあるので、それぞれインスタンス化必要がある
-export default class Clip {
+export class Clip {
   readonly clip: ClipContract;
   readonly vat: VatContract;
   readonly ilk: string;

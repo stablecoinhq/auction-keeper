@@ -30,7 +30,7 @@ interface VowStatus {
 // Surplus及びDebtオークションを開始させるBot
 // Surplusオークションは負債が0かつ、十分な余剰DAIが存在するときに開始できる
 // Debtオークションは余剰DAIが0かつ、負債が十分に存在するときに開始できる
-export default class Vow {
+export class Vow {
   readonly vow: VowContract;
   readonly vat: VatContract;
   private readonly signer: ethers.Wallet;

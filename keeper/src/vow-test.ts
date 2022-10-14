@@ -1,6 +1,6 @@
 import { ethers } from "ethers";
 import { getEnvs } from "./config";
-import Vow from "./vow";
+import { Vow } from "@auction-keeper/core";
 
 process.on("SIGINT", function () {
   console.log("\nGracefully shutting down from SIGINT (Ctrl-C)");
