@@ -9,6 +9,8 @@ export interface Vault {
 export class VaultCollection {
   _vaults: Map<string, Set<string>>;
 
+  constructor(vault: Map<string, Set<string>>);
+  constructor();
   constructor(vault?: Map<string, Set<string>>) {
     this._vaults = vault || new Map();
   }
@@ -25,12 +27,22 @@ export class VaultCollection {
     return this;
   }
 
-  // Merge single VaultCollection
   push(
     this: VaultCollection,
     vaultCollection: VaultCollection
+  ): VaultCollection;
+  push(
+    this: VaultCollection,
+    vaultCollection: VaultCollection[]
+  ): VaultCollection;
+  push(
+    this: VaultCollection,
+    vs: VaultCollection | VaultCollection[]
   ): VaultCollection {
-    return this.merge([vaultCollection]);
+    if (vs instanceof VaultCollection) {
+      return this.merge([vs]);
+    }
+    return this.merge(vs);
   }
 
   // Merge other VaultCollections
