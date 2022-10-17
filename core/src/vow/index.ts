@@ -43,7 +43,8 @@ export class Vow {
   }
 
   async start() {
-    this._listenToVow();
+    await this._checkVow();
+    this._listenToEvents();
     this._listenToSurplusAuction();
     this._listenToDebtAuction();
   }
@@ -56,7 +57,7 @@ export class Vow {
   }
 
   // vowコントラクトのイベントをListenし、オークションが開始可能か調べる
-  private async _listenToVow() {
+  private async _listenToEvents() {
     console.log("Listening to heal events...");
     const healEventFilter =
       this.vow.filters["LogNote(bytes4,address,bytes32,bytes32,bytes)"](HEAL);
@@ -67,19 +68,24 @@ export class Vow {
 
       if (functionSig === HEAL) {
         console.log(`Heal event triggered, checking vow status`);
-        const vowStatus = await this._getVowStatus();
-        const canFlap = Vow.canFlap(vowStatus);
-        if (canFlap) {
-          console.log("Surplus auction can be started.");
-          this._startSurplusAuction();
-        }
-        const canFlop = Vow.canFlop(vowStatus);
-        if (canFlop) {
-          console.log("Debt auction can be started.");
-          this._startDebtAuction();
-        }
+        this._checkVow();
       }
     });
+  }
+
+  // Check vow status, start auction if needed
+  private async _checkVow() {
+    const vowStatus = await this._getVowStatus();
+    const canFlap = Vow.canFlap(vowStatus);
+    if (canFlap) {
+      console.log("Surplus auction can be started.");
+      this._startSurplusAuction();
+    }
+    const canFlop = Vow.canFlop(vowStatus);
+    if (canFlop) {
+      console.log("Debt auction can be started.");
+      this._startDebtAuction();
+    }
   }
 
   // flapperコントラクトのイベントをListenし、Surplusオークションが開始されたか調べる
