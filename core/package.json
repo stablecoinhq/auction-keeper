@@ -6,7 +6,7 @@
   "types": "dist/src/index.d.ts",
   "license": "MIT",
   "scripts": {
-    "generate-types": "typechain --target=ethers-v5 'abi/*.json'",
+    "generate-types": "typechain --target=ethers-v5 'abi/*.json' --out-dir ./src/types/ether-contracts",
     "start": "ts-node ./src/index.ts",
     "test-vow": "ts-node ./src/vow.test.ts",
     "test": "jest",

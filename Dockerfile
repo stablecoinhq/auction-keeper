@@ -8,7 +8,7 @@ COPY package-lock.json .
 COPY tsconfig.json .
 COPY tsconfig.base.json .
 COPY core core
-COPY keeper keeper
+COPY app app
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
 RUN npm run build
@@ -20,7 +20,7 @@ WORKDIR "/app"
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/package-lock.json ./package-lock.json
 COPY --from=builder /app/core core
-COPY --from=builder /app/keeper keeper
+COPY --from=builder /app/app app
 COPY --from=builder /app/node_modules ./node_modules
 
-CMD [ "node", "./keeper/dist/src/index.js"]
+CMD [ "node", "./app/dist/src/index.js"]

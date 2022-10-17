@@ -6,7 +6,7 @@ import {
   Vat as VatContract,
   Flapper__factory,
   Flopper__factory,
-} from "../../types/ethers-contracts/index";
+} from "../types/ether-contracts";
 import { HEAL } from "./constants";
 
 // Config
@@ -46,6 +46,13 @@ export class Vow {
     this._listenToVow();
     this._listenToSurplusAuction();
     this._listenToDebtAuction();
+  }
+
+  async flapperAddress() {
+    return this.vow.flapper();
+  }
+  async flopperAddress() {
+    return this.vow.flopper();
   }
 
   // vowコントラクトのイベントをListenし、オークションが開始可能か調べる

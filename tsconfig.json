@@ -2,7 +2,7 @@
     "files": [],
     "references": [
       { "path": "core" },
-      { "path": "keeper"}
+      { "path": "app"}
     ]
 }
   

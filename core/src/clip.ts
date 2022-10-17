@@ -4,7 +4,7 @@ import {
   Clip__factory,
   Vat__factory,
   Vat as VatContract,
-} from "../types/ethers-contracts/index";
+} from "./types/ether-contracts";
 import { displayUnits, constants as unitContants } from "./units";
 
 export interface ClipConfig {

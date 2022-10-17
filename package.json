@@ -6,14 +6,15 @@
   "scripts": {
     "test": "jest",
     "build": "tsc --build",
-    "start": "node keeper/dist/src/index.js"
+    "start": "node app/dist/src/index.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "workspaces": [
     "core",
-    "keeper"
+    "app",
+    "contracts"
   ],
   "devDependencies": {
     "typescript": "^4.8.4",

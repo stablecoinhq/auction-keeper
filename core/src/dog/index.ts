@@ -3,7 +3,7 @@ import {
   Vat as VatContract,
   Vat__factory,
   Dog__factory,
-} from "../../types/ethers-contracts/index";
+} from "../types/ether-contracts";
 import { BigNumber, constants } from "ethers";
 import { displayUnits, constants as unitContants } from "../units";
 import { ethers } from "ethers";
