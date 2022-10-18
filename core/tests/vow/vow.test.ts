@@ -1,5 +1,13 @@
-import { BigNumber } from "ethers";
+import { BigNumber, ethers } from "ethers";
 import { Vow, VowStatus } from "../../src/index";
+import { getArgumentFromRawData } from "../../src/vow";
+
+const BYTES_32 = 64;
+
+// 与えられたデータをアドレスに整形する
+function toAddress(data: string): string {
+  return `0x${data.slice(24)}`;
+}
 
 describe("Vow", () => {
   describe("calculateHealingAmount", () => {
@@ -72,7 +80,6 @@ describe("Vow", () => {
       const [healingAmount, shouldHeal] =
         Vow.calculateHealingAmount(surplusVowStatus);
 
-      console.log(healingAmount.toString());
       expect(healingAmount).toEqual(BigNumber.from("1"));
       expect(shouldHeal).toBe(true);
     });
@@ -108,8 +115,6 @@ describe("Vow", () => {
       };
       const [healingAmount, shouldHeal] =
         Vow.calculateHealingAmount(surplusVowStatus);
-
-      console.log(healingAmount.toString());
       expect(healingAmount).toEqual(BigNumber.from("0"));
       expect(shouldHeal).toBe(false);
     });
@@ -213,6 +218,35 @@ describe("Vow", () => {
         Vow.calculateHealingAmount(debtVowStatus);
       expect(healingAmount).toEqual(BigNumber.from("0"));
       expect(shouldHeal).toEqual(false);
+    });
+  });
+  describe("Vat.frob", () => {
+    it("Should parse raw frob event", () => {
+      // https://etherscan.io/tx/0x8711d01114bdf0c3afadecea6fb28e711ef3a953e98e4e3b20b190f9d3123376#eventlog
+      const rawEvent =
+        "0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000e0760887034554482d43000000000000000000000000000000000000000000000000000000000000000000000000000000ae721fb008c3035e568f4d9ac0c9a6bccff4f87f000000000000000000000000ae721fb008c3035e568f4d9ac0c9a6bccff4f87f00000000000000000000000056d48a77e5f302dc369f2f93e1aa86cd1f9470f2000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000017b7883c0691660000000000000000000000000000000000000000000000000000000000000";
+      const fourthArgument = rawEvent
+        .slice(2)
+        .slice(BYTES_32 * 2)
+        .slice(8)
+        .slice(BYTES_32 * 3)
+        .slice(0, BYTES_32);
+
+      console.log(toAddress(fourthArgument));
+      expect(fourthArgument).toBe(
+        "00000000000000000000000056d48a77e5f302dc369f2f93e1aa86cd1f9470f2"
+      );
+      expect(ethers.utils.isAddress(toAddress(fourthArgument))).toBe(true);
+    });
+    it("Should parse raw grab event", () => {
+      // https://etherscan.io/tx/0x8711d01114bdf0c3afadecea6fb28e711ef3a953e98e4e3b20b190f9d3123376#eventlog
+      const rawEvent =
+        "0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000e07bab3f404554482d43000000000000000000000000000000000000000000000000000000000000000000000000000000ae721fb008c3035e568f4d9ac0c9a6bccff4f87f000000000000000000000000ae721fb008c3035e568f4d9ac0c9a6bccff4f87f00000000000000000000000056d48a77e5f302dc369f2f93e1aa86cd1f9470f2000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000017b7883c0691660000000000000000000000000000000000000000000000000000000000000";
+      const fourthArgument = getArgumentFromRawData(rawEvent, 4);
+      expect(fourthArgument).toBe(
+        "00000000000000000000000056d48a77e5f302dc369f2f93e1aa86cd1f9470f2"
+      );
+      expect(ethers.utils.isAddress(toAddress(fourthArgument))).toBe(true);
     });
   });
 });

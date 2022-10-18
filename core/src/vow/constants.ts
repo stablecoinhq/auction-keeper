@@ -1,4 +1,3 @@
-//　Vatコントラクトの以下の関数の引数がvowコントラクトのアドレスなら調べる
 // grab(bytes32,address,address,address,int256,int256)
 // frob(bytes32,address,address,address,int256,int256)
 // move(address,address,uint256)

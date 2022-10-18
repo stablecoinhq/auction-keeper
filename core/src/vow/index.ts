@@ -9,10 +9,27 @@ import {
 } from "../types/ether-contracts";
 import { Events, BYTES_32 } from "./constants";
 
+function toAddress(data: string): string {
+  return `0x${data.slice(24)}`;
+}
+
+export function getArgumentFromRawData(data: string, n: number): string {
+  if (!data) {
+    return "";
+  }
+  // 0x + 64バイト + 4バイト + １引数32バイト * 3
+  return data
+    .slice(2)
+    .slice(BYTES_32 * 2)
+    .slice(8)
+    .slice(BYTES_32 * (n - 1))
+    .slice(0, BYTES_32);
+}
+
 // Config
 export interface VowConfig {
   vowAddress: string; // Vowコントラクトのアドレス
-  vatAddress: string; // Vatアドレスのアドレス
+  vatAddress: string; // Vatコントラクトのアドレス
   signer: ethers.Wallet; // Signer
   minHealingAmount: BigNumber;
 }
@@ -60,7 +77,7 @@ export class Vow {
   }
 
   // vowコントラクトのイベントをListenし、オークションが開始可能か調べる
-  private async _listenToEvents() {
+  private async _listenToEvents(): Promise<void> {
     console.log("Listening to heal events...");
     const healEventFilter = this.vow.filters[
       "LogNote(bytes4,address,bytes32,bytes32,bytes)"
@@ -83,7 +100,7 @@ export class Vow {
     // move(address,address,uint256): 2,3つ目の引数
     // fold(bytes32,address,int256): 2つ目の引数
     // suck(address,address,uint256): 2,3つ目の引数
-    [Events.grab, Events.frob, Events.move, Events.fold, Events.suck].map(
+    [Events.grab, Events.frob, Events.move, Events.fold, Events.suck].forEach(
       async (event) => {
         const eventFilter =
           this.vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](
@@ -91,51 +108,46 @@ export class Vow {
           );
         this.vat.on(eventFilter, async (...args) => {
           const [rawEvent] = args;
-          const parsedTopics = rawEvent as any as {
+          const parsedEvent = rawEvent as any as {
             topics: string[];
             data: string;
           };
-          const [, , arg2, arg3] = parsedTopics.topics;
+          const vowAddressToCheck = this.vow.address.toLowerCase();
+          const [, , arg2, arg3] = parsedEvent.topics;
           // 4つ目の引数はdataをパースしないと取得できない
-          // 0x + 64バイト + 4バイト + １引数32バイト * 3
-          const arg4 = parsedTopics.data
-            .slice(2)
-            .slice(BYTES_32 * 2)
-            .slice(8)
-            .slice(BYTES_32 * 3)
-            .slice(0, BYTES_32);
+          const arg4 = getArgumentFromRawData(parsedEvent.data, 4);
           switch (event) {
             case Events.grab:
-              if (arg4 && arg4 === this.vow.address) {
+              if (toAddress(arg4) && toAddress(arg4) === vowAddressToCheck) {
                 console.log("Grab on vow address");
                 this._checkState();
               }
               break;
             case Events.frob:
-              if (arg4 && arg4 === this.vow.address) {
+              if (toAddress(arg4) && toAddress(arg4) === vowAddressToCheck) {
                 console.log("Frob on vow address");
                 this._checkState();
               }
               break;
             case Events.move:
               if (
-                (arg2 && arg2 === this.vow.address) ||
-                (arg3 && arg3 === this.vow.address)
+                (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck) ||
+                (toAddress(arg3) && toAddress(arg3) === vowAddressToCheck)
               ) {
                 console.log("Move on vow address");
                 this._checkState();
               }
               break;
             case Events.fold:
-              if (arg2 && arg2 === this.vow.address) {
+              if (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck) {
                 console.log("Fold on vow address");
                 this._checkState();
               }
               break;
             case Events.suck:
               if (
-                (arg2 && arg2 === this.vow.address) ||
-                (arg3 && arg3 === this.vow.address)
+                (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck) ||
+                (toAddress(arg3) && toAddress(arg3) === vowAddressToCheck)
               ) {
                 console.log("Suck on vow address");
                 this._checkState();

@@ -27,7 +27,6 @@ async function main() {
     fromBlock: envs.FROM_BLOCK,
     toBlock: envs.TO_BLOCK,
   });
-
   const vatAddress = await dog.getVatAddress();
 
   const vow = new Vow({

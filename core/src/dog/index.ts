@@ -201,7 +201,7 @@ export class Dog {
     const vat = await this.vatContract;
     console.log("Start listening to ongoing events...");
 
-    [Events.fold, Events.fork, Events.frob, Events.file].map(async (event) => {
+    [Events.fold, Events.fork, Events.frob, Events.file].forEach(async (event) => {
       const eventFilter =
         vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](event);
       vat.on(eventFilter, async (...args) => {
