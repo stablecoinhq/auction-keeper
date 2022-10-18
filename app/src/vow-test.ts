@@ -1,4 +1,4 @@
-import { ethers } from "ethers";
+import { ethers, BigNumber } from "ethers";
 import { getEnvs } from "./config";
 import { Vow } from "@auction-keeper/core";
 
@@ -25,6 +25,9 @@ async function main() {
   const vow = new Vow({
     vowAddress: envs.VOW_ADDRESS,
     vatAddress: vatAddress,
+    minHealingAmount: BigNumber.from(
+      "50000000000000000000000000000000000000000000000000"
+    ),
     signer,
   });
 

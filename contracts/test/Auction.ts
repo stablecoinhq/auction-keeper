@@ -36,6 +36,9 @@ async function load() {
     vatAddress: "0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B",
     vowAddress: "0xA950524441892A31ebddF91d3cEEFa04Bf454466",
     signer: signer,
+    minHealingAmount: BigNumber.from(
+      "50000000000000000000000000000000000000000000000000"
+    ),
   });
 
   const vowContract = Vow__factory.connect(
@@ -53,7 +56,6 @@ function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-
 // Vow contract status at block 9656038
 // sin:  799633423869610118558897679808725321089545663422952
 // Sin:  799627146321970172679137907073248701355171709933777
@@ -68,33 +70,15 @@ describe("auction keeper", function () {
     });
 
     it("Should start surplus auction", async function () {
-      const { vow, vowContract } = await load();
+      const { vow } = await load();
       vow.start();
       const flapperAddress = await vow.flapperAddress();
       const flapper = Flapper__factory.connect(flapperAddress, signer);
       const before = await flapper.kicks();
-      await vowContract.heal(
-        BigNumber.from("6277547639945879759772735476619734373953489175")
-      );
       const eventFilter = flapper.filters["Kick(uint256,uint256,uint256)"]();
       flapper.on(eventFilter, async (after) => {
         expect(before).lessThan(after);
       });
-    });
-
-    // If there is even 1 rad of DAI debt, the auction will not start.
-    it("Should not start start surplus auction", async function () {
-      const { vow, vowContract } = await load();
-      vow.start();
-      const flapperAddress = await vow.flapperAddress();
-      const flapper = Flapper__factory.connect(flapperAddress, signer);
-      const before = await flapper.kicks();
-      await vowContract.heal(
-        BigNumber.from("6277547639945879759772735476619734373953489174")
-      );
-      await sleep(3000);
-      const after = await flapper.kicks();
-      expect(before).eq(after);
     });
   });
 
@@ -116,28 +100,11 @@ describe("auction keeper", function () {
       const flopperAddress = await vow.flopperAddress();
       const flopper = Flopper__factory.connect(flopperAddress, signer);
       const before = await flopper.kicks();
-      await vowContract.heal(
-        BigNumber.from("43182088423581837831814105867170163957827142136124")
-      );
       const eventFilter =
         flopper.filters["Kick(uint256,uint256,uint256,address)"]();
       flopper.on(eventFilter, async (after) => {
         expect(before).lessThan(after);
       });
-    });
-    // If there is even 1 rad of surplus DAI, the debt auction will not be started.
-    it("Should not start debt auction", async function () {
-      const { vow, vowContract } = await load();
-      vow.start();
-      const flopperAddress = await vow.flopperAddress();
-      const flopper = Flopper__factory.connect(flopperAddress, signer);
-      const before = await flopper.kicks();
-      await vowContract.heal(
-        BigNumber.from("43182088423581837831814105867170163957827142136123")
-      );
-      await sleep(3000);
-      const after = await flopper.kicks();
-      expect(before).eq(after);
     });
   });
 

@@ -14,10 +14,11 @@ export interface VowConfig {
   vowAddress: string; // Vowコントラクトのアドレス
   vatAddress: string; // Vatアドレスのアドレス
   signer: ethers.Wallet; // Signer
+  minHealingAmount: BigNumber;
 }
 
 // Vowコントラクトの状態
-interface VowStatus {
+export interface VowStatus {
   fixedDebtAuctionSize: BigNumber; // sump
   fixedSurplusAuctionSize: BigNumber; // bump
   auctionSizeBuffer: BigNumber; // hump
@@ -34,9 +35,11 @@ export class Vow {
   readonly vow: VowContract;
   readonly vat: VatContract;
   private readonly signer: ethers.Wallet;
+  readonly minHealingAmount;
 
   constructor(config: VowConfig) {
-    const { vowAddress, vatAddress, signer } = config;
+    const { vowAddress, vatAddress, signer, minHealingAmount } = config;
+    this.minHealingAmount = minHealingAmount;
     this.signer = signer;
     this.vow = Vow__factory.connect(vowAddress, this.signer);
     this.vat = Vat__factory.connect(vatAddress, this.signer);
@@ -85,6 +88,10 @@ export class Vow {
     if (canFlop) {
       console.log("Debt auction can be started.");
       this._startDebtAuction();
+    }
+    const [healingAmount, shouldHeal] = Vow.calculateHealingAmount(vowStatus);
+    if (shouldHeal || healingAmount.gte(this.minHealingAmount)) {
+      this._heal(healingAmount);
     }
   }
 
@@ -138,6 +145,14 @@ export class Vow {
       console.log(
         `Debt auction cannot be started with reason: ${e.error.reason}`
       );
+    });
+  }
+
+  // heal()を呼ぶ
+  private async _heal(healingAmount: BigNumber) {
+    console.log(`Healing with ${healingAmount.toString()}`);
+    this.vow.heal(healingAmount).catch((e) => {
+      console.log(`Heal was not successful with reason: ${e.error.reason}`);
     });
   }
 
@@ -203,9 +218,46 @@ export class Vow {
     return hasSufficientDebt && hasNoSurplus;
   }
 
+  // Heal可能な数量及び、オークション可能の有無のフラグを返す
+  static calculateHealingAmount(vowStatus: VowStatus): [BigNumber, boolean] {
+    const {
+      fixedSurplusAuctionSize,
+      auctionSizeBuffer,
+      queuedDebt,
+      onAuctionDebt,
+      availableDai,
+      unbackedDai,
+      fixedDebtAuctionSize,
+    } = vowStatus;
+
+    const remainingDebt = unbackedDai.sub(queuedDebt).sub(onAuctionDebt);
+    // 負債、資産いずれかが0ならfalse
+    if (remainingDebt.lte(0) || availableDai.lte(0)) {
+      return [BigNumber.from(0), false];
+    }
+
+    const healingAmount = availableDai.gt(remainingDebt)
+      ? remainingDebt
+      : availableDai;
+
+    const vowStatusAfterHeal = {
+      fixedSurplusAuctionSize,
+      auctionSizeBuffer,
+      queuedDebt,
+      onAuctionDebt,
+      availableDai: availableDai.sub(healingAmount),
+      unbackedDai: unbackedDai.sub(healingAmount),
+      fixedDebtAuctionSize,
+    };
+    const canFlop = Vow.canFlop(vowStatusAfterHeal);
+    const canFlap = Vow.canFlap(vowStatusAfterHeal);
+
+    return [healingAmount, canFlap || canFlop];
+  }
+
   static displayVowStatus(vowStatus: VowStatus) {
     const {
-      fixedSurplusAuctionSize: fixedAuctionSize,
+      fixedSurplusAuctionSize,
       auctionSizeBuffer,
       queuedDebt,
       onAuctionDebt,
@@ -213,7 +265,7 @@ export class Vow {
       unbackedDai,
     } = vowStatus;
     const currentDebt = unbackedDai
-      .add(fixedAuctionSize)
+      .add(fixedSurplusAuctionSize)
       .add(auctionSizeBuffer);
     const remainingDebt = unbackedDai.sub(queuedDebt).sub(onAuctionDebt);
     console.log({

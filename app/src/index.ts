@@ -1,4 +1,4 @@
-import { ethers } from "ethers";
+import { ethers, BigNumber } from "ethers";
 
 import { Dog } from "@auction-keeper/core";
 import { Clip } from "@auction-keeper/core";
@@ -34,6 +34,9 @@ async function main() {
     vowAddress: envs.VOW_ADDRESS,
     vatAddress: vatAddress,
     signer,
+    minHealingAmount: BigNumber.from(
+      "50000000000000000000000000000000000000000000000000"
+    ),
   });
 
   if (envs.RUN_CLIP === true) {
