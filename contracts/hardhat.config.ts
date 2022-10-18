@@ -9,7 +9,7 @@ const config: HardhatUserConfig = {
     hardhat: {
       forking: {
         url: `https://mainnet.infura.io/v3/${process.env.INFURA_API_KEY!}`,
-        blockNumber: 9656038,
+        blockNumber: 12316400,
       },
     },
   },

@@ -7,7 +7,7 @@ import {
   Flapper__factory,
   Flopper__factory,
 } from "../types/ether-contracts";
-import { HEAL } from "./constants";
+import { Events, BYTES_32 } from "./constants";
 
 // Config
 export interface VowConfig {
@@ -18,7 +18,7 @@ export interface VowConfig {
 }
 
 // Vowコントラクトの状態
-export interface VowStatus {
+export interface VowState {
   fixedDebtAuctionSize: BigNumber; // sump
   fixedSurplusAuctionSize: BigNumber; // bump
   auctionSizeBuffer: BigNumber; // hump
@@ -62,34 +62,115 @@ export class Vow {
   // vowコントラクトのイベントをListenし、オークションが開始可能か調べる
   private async _listenToEvents() {
     console.log("Listening to heal events...");
-    const healEventFilter =
-      this.vow.filters["LogNote(bytes4,address,bytes32,bytes32,bytes)"](HEAL);
+    const healEventFilter = this.vow.filters[
+      "LogNote(bytes4,address,bytes32,bytes32,bytes)"
+    ](Events.heal);
     this.vow.on(healEventFilter, async (...args) => {
       const [rawEvent] = args;
       const parsedTopics = rawEvent as any as { topics: string[] };
       const [functionSig] = parsedTopics.topics;
 
-      if (functionSig === HEAL) {
-        console.log(`Heal event triggered, checking vow status`);
+      if (functionSig === Events.heal) {
+        console.log(`Heal event triggered, checking vow state`);
         this._checkVow();
       }
     });
+
+    // Vowコントラクトの財務状況確認
+    // Vatコントラクトの以下の関数の引数がvowコントラクトのアドレスなら調べる
+    // grab(bytes32,address,address,address,int256,int256): 4つ目の引数
+    // frob(bytes32,address,address,address,int256,int256): 4つ目の引数
+    // move(address,address,uint256): 2,3つ目の引数
+    // fold(bytes32,address,int256): 2つ目の引数
+    // suck(address,address,uint256): 2,3つ目の引数
+    [Events.grab, Events.frob, Events.move, Events.fold, Events.suck].map(
+      async (event) => {
+        const eventFilter =
+          this.vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](
+            event
+          );
+        this.vat.on(eventFilter, async (...args) => {
+          const [rawEvent] = args;
+          const parsedTopics = rawEvent as any as {
+            topics: string[];
+            data: string;
+          };
+          const [, , arg2, arg3] = parsedTopics.topics;
+          // 4つ目の引数はdataをパースしないと取得できない
+          // 0x + 64バイト + 4バイト + １引数32バイト * 3
+          const arg4 = parsedTopics.data
+            .slice(2)
+            .slice(BYTES_32 * 2)
+            .slice(8)
+            .slice(BYTES_32 * 3)
+            .slice(0, BYTES_32);
+          switch (event) {
+            case Events.grab:
+              if (arg4 && arg4 === this.vow.address) {
+                console.log("Grab on vow address");
+                this._checkState();
+              }
+              break;
+            case Events.frob:
+              if (arg4 && arg4 === this.vow.address) {
+                console.log("Frob on vow address");
+                this._checkState();
+              }
+              break;
+            case Events.move:
+              if (
+                (arg2 && arg2 === this.vow.address) ||
+                (arg3 && arg3 === this.vow.address)
+              ) {
+                console.log("Move on vow address");
+                this._checkState();
+              }
+              break;
+            case Events.fold:
+              if (arg2 && arg2 === this.vow.address) {
+                console.log("Fold on vow address");
+                this._checkState();
+              }
+              break;
+            case Events.suck:
+              if (
+                (arg2 && arg2 === this.vow.address) ||
+                (arg3 && arg3 === this.vow.address)
+              ) {
+                console.log("Suck on vow address");
+                this._checkState();
+              }
+              break;
+            default:
+              break;
+          }
+        });
+      }
+    );
   }
 
-  // Check vow status, start auction if needed
+  // Check vow state, start auction if needed
   private async _checkVow() {
-    const vowStatus = await this._getVowStatus();
-    const canFlap = Vow.canFlap(vowStatus);
+    const vowState = await this._getVowState();
+    const canFlap = Vow.canFlap(vowState);
     if (canFlap) {
       console.log("Surplus auction can be started.");
       this._startSurplusAuction();
     }
-    const canFlop = Vow.canFlop(vowStatus);
+    const canFlop = Vow.canFlop(vowState);
     if (canFlop) {
       console.log("Debt auction can be started.");
       this._startDebtAuction();
     }
-    const [healingAmount, shouldHeal] = Vow.calculateHealingAmount(vowStatus);
+    const [healingAmount, shouldHeal] = Vow.calculateHealingAmount(vowState);
+    if (shouldHeal || healingAmount.gte(this.minHealingAmount)) {
+      this._heal(healingAmount);
+    }
+  }
+
+  private async _checkState() {
+    const vowState = await this._getVowState();
+    const [healingAmount, shouldHeal] = Vow.calculateHealingAmount(vowState);
     if (shouldHeal || healingAmount.gte(this.minHealingAmount)) {
       this._heal(healingAmount);
     }
@@ -157,7 +238,7 @@ export class Vow {
   }
 
   // Vowコントラクトの状態を取得する
-  private async _getVowStatus(): Promise<VowStatus> {
+  private async _getVowState(): Promise<VowState> {
     // dai
     const availableDai = await this.vat.dai(this.vow.address);
     // sin
@@ -184,7 +265,7 @@ export class Vow {
   }
 
   // Surplusオークションを開始できるか調べる
-  static canFlap(vowStatus: VowStatus): boolean {
+  static canFlap(vowState: VowState): boolean {
     const {
       fixedSurplusAuctionSize,
       auctionSizeBuffer,
@@ -192,8 +273,8 @@ export class Vow {
       onAuctionDebt,
       availableDai,
       unbackedDai,
-    } = vowStatus;
-    this.displayVowStatus(vowStatus);
+    } = vowState;
+    this.displayVowState(vowState);
     const currentDebt = unbackedDai
       .add(fixedSurplusAuctionSize)
       .add(auctionSizeBuffer);
@@ -203,14 +284,14 @@ export class Vow {
   }
 
   // Debtオークションを開始できるか調べる
-  static canFlop(vowStatus: VowStatus): boolean {
+  static canFlop(vowState: VowState): boolean {
     const {
       fixedDebtAuctionSize,
       queuedDebt,
       onAuctionDebt,
       unbackedDai,
       availableDai,
-    } = vowStatus;
+    } = vowState;
 
     const remainingDebt = unbackedDai.sub(queuedDebt).sub(onAuctionDebt);
     const hasSufficientDebt = fixedDebtAuctionSize.lte(remainingDebt);
@@ -219,7 +300,7 @@ export class Vow {
   }
 
   // Heal可能な数量及び、オークション可能の有無のフラグを返す
-  static calculateHealingAmount(vowStatus: VowStatus): [BigNumber, boolean] {
+  static calculateHealingAmount(vowState: VowState): [BigNumber, boolean] {
     const {
       fixedSurplusAuctionSize,
       auctionSizeBuffer,
@@ -228,7 +309,7 @@ export class Vow {
       availableDai,
       unbackedDai,
       fixedDebtAuctionSize,
-    } = vowStatus;
+    } = vowState;
 
     const remainingDebt = unbackedDai.sub(queuedDebt).sub(onAuctionDebt);
     // 負債、資産いずれかが0ならfalse
@@ -240,7 +321,7 @@ export class Vow {
       ? remainingDebt
       : availableDai;
 
-    const vowStatusAfterHeal = {
+    const vowStateAfterHeal = {
       fixedSurplusAuctionSize,
       auctionSizeBuffer,
       queuedDebt,
@@ -249,13 +330,13 @@ export class Vow {
       unbackedDai: unbackedDai.sub(healingAmount),
       fixedDebtAuctionSize,
     };
-    const canFlop = Vow.canFlop(vowStatusAfterHeal);
-    const canFlap = Vow.canFlap(vowStatusAfterHeal);
+    const canFlop = Vow.canFlop(vowStateAfterHeal);
+    const canFlap = Vow.canFlap(vowStateAfterHeal);
 
     return [healingAmount, canFlap || canFlop];
   }
 
-  static displayVowStatus(vowStatus: VowStatus) {
+  static displayVowState(vowState: VowState) {
     const {
       fixedSurplusAuctionSize,
       auctionSizeBuffer,
@@ -263,10 +344,10 @@ export class Vow {
       onAuctionDebt,
       availableDai,
       unbackedDai,
-    } = vowStatus;
+    } = vowState;
     const currentDebt = unbackedDai
-      .add(fixedSurplusAuctionSize)
-      .add(auctionSizeBuffer);
+      .sub(fixedSurplusAuctionSize)
+      .sub(auctionSizeBuffer);
     const remainingDebt = unbackedDai.sub(queuedDebt).sub(onAuctionDebt);
     console.log({
       availableDai: availableDai.toString(),
