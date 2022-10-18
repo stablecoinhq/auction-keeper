@@ -31,7 +31,6 @@ export interface VowConfig {
   vowAddress: string; // Vowコントラクトのアドレス
   vatAddress: string; // Vatコントラクトのアドレス
   signer: ethers.Wallet; // Signer
-  minHealingAmount: BigNumber;
 }
 
 // Vowコントラクトの状態
@@ -52,18 +51,16 @@ export class Vow {
   readonly vow: VowContract;
   readonly vat: VatContract;
   private readonly signer: ethers.Wallet;
-  readonly minHealingAmount;
 
   constructor(config: VowConfig) {
-    const { vowAddress, vatAddress, signer, minHealingAmount } = config;
-    this.minHealingAmount = minHealingAmount;
+    const { vowAddress, vatAddress, signer } = config;
     this.signer = signer;
     this.vow = Vow__factory.connect(vowAddress, this.signer);
     this.vat = Vat__factory.connect(vatAddress, this.signer);
   }
 
   async start() {
-    await this._checkVow();
+    await this._checkVowState();
     this._listenToEvents();
     this._listenToSurplusAuction();
     this._listenToDebtAuction();
@@ -89,7 +86,7 @@ export class Vow {
 
       if (functionSig === Events.heal) {
         console.log(`Heal event triggered, checking vow state`);
-        this._checkVow();
+        this._checkVowState();
       }
     });
 
@@ -97,9 +94,9 @@ export class Vow {
     // Vatコントラクトの以下の関数の引数がvowコントラクトのアドレスなら調べる
     // grab(bytes32,address,address,address,int256,int256): 4つ目の引数
     // frob(bytes32,address,address,address,int256,int256): 4つ目の引数
-    // move(address,address,uint256): 2,3つ目の引数
+    // move(address,address,uint256): 1,2つ目の引数
     // fold(bytes32,address,int256): 2つ目の引数
-    // suck(address,address,uint256): 2,3つ目の引数
+    // suck(address,address,uint256): 1,2つ目の引数
     [Events.grab, Events.frob, Events.move, Events.fold, Events.suck].forEach(
       async (event) => {
         const eventFilter =
@@ -113,7 +110,7 @@ export class Vow {
             data: string;
           };
           const vowAddressToCheck = this.vow.address.toLowerCase();
-          const [, , arg2, arg3] = parsedEvent.topics;
+          const [, arg1, arg2] = parsedEvent.topics;
           // 4つ目の引数はdataをパースしないと取得できない
           const arg4 = getArgumentFromRawData(parsedEvent.data, 4);
           switch (event) {
@@ -131,8 +128,8 @@ export class Vow {
               break;
             case Events.move:
               if (
-                (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck) ||
-                (toAddress(arg3) && toAddress(arg3) === vowAddressToCheck)
+                (toAddress(arg1) && toAddress(arg1) === vowAddressToCheck) ||
+                (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck)
               ) {
                 console.log("Move on vow address");
                 this._checkState();
@@ -146,8 +143,8 @@ export class Vow {
               break;
             case Events.suck:
               if (
-                (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck) ||
-                (toAddress(arg3) && toAddress(arg3) === vowAddressToCheck)
+                (toAddress(arg1) && toAddress(arg1) === vowAddressToCheck) ||
+                (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck)
               ) {
                 console.log("Suck on vow address");
                 this._checkState();
@@ -162,28 +159,37 @@ export class Vow {
   }
 
   // Check vow state, start auction if needed
-  private async _checkVow() {
+  private async _checkVowState() {
     const vowState = await this._getVowState();
     const canFlap = Vow.canFlap(vowState);
     if (canFlap) {
       console.log("Surplus auction can be started.");
-      this._startSurplusAuction();
+      await this._startSurplusAuction();
     }
     const canFlop = Vow.canFlop(vowState);
     if (canFlop) {
       console.log("Debt auction can be started.");
-      this._startDebtAuction();
+      await this._startDebtAuction();
     }
+
+    const { fixedSurplusAuctionSize, fixedDebtAuctionSize } = vowState;
+    const minHealingAmount = fixedDebtAuctionSize.lt(fixedSurplusAuctionSize)
+      ? fixedDebtAuctionSize
+      : fixedSurplusAuctionSize;
     const [healingAmount, shouldHeal] = Vow.calculateHealingAmount(vowState);
-    if (shouldHeal || healingAmount.gte(this.minHealingAmount)) {
-      this._heal(healingAmount);
+    if (shouldHeal || healingAmount.gte(minHealingAmount)) {
+      await this._heal(healingAmount);
     }
   }
 
   private async _checkState() {
     const vowState = await this._getVowState();
+    const { fixedSurplusAuctionSize, fixedDebtAuctionSize } = vowState;
+    const minHealingAmount = fixedDebtAuctionSize.lt(fixedSurplusAuctionSize)
+      ? fixedDebtAuctionSize
+      : fixedSurplusAuctionSize;
     const [healingAmount, shouldHeal] = Vow.calculateHealingAmount(vowState);
-    if (shouldHeal || healingAmount.gte(this.minHealingAmount)) {
+    if (shouldHeal || healingAmount.gte(minHealingAmount)) {
       this._heal(healingAmount);
     }
   }

@@ -7,6 +7,7 @@ import {
   Vow__factory,
   Dog,
   Vow,
+  Vat__factory,
 } from "@auction-keeper/core";
 import { BigNumber } from "ethers";
 
@@ -27,33 +28,32 @@ async function forkNetwork(n: number): Promise<void> {
   });
 }
 
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 const signer = ethers.Wallet.fromMnemonic(
   "test test test test test test test test test test test junk"
 ).connect(ethers.provider);
 
+const VOW_ADDRESS = "0xA950524441892A31ebddF91d3cEEFa04Bf454466";
+const VAT_ADDRESS = "0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B";
 async function load() {
   const vow = new Vow({
-    vatAddress: "0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B",
-    vowAddress: "0xA950524441892A31ebddF91d3cEEFa04Bf454466",
+    vatAddress: VAT_ADDRESS,
+    vowAddress: VOW_ADDRESS,
     signer: signer,
-    minHealingAmount: BigNumber.from(
-      "50000000000000000000000000000000000000000000000000"
-    ),
   });
 
-  const vowContract = Vow__factory.connect(
-    "0xA950524441892A31ebddF91d3cEEFa04Bf454466",
-    signer
-  );
+  const vowContract = Vow__factory.connect(VOW_ADDRESS, signer);
+
+  const vatContract = Vat__factory.connect(VAT_ADDRESS, signer);
 
   return {
     vow,
     vowContract,
+    vatContract,
   };
-}
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 // Vow contract status at block 9656038
@@ -70,15 +70,17 @@ describe("auction keeper", function () {
     });
 
     it("Should start surplus auction", async function () {
-      const { vow } = await load();
+      const { vow, vatContract, vowContract } = await load();
       vow.start();
       const flapperAddress = await vow.flapperAddress();
       const flapper = Flapper__factory.connect(flapperAddress, signer);
       const before = await flapper.kicks();
-      const eventFilter = flapper.filters["Kick(uint256,uint256,uint256)"]();
-      flapper.on(eventFilter, async (after) => {
-        expect(before).lessThan(after);
-      });
+      await sleep(6000);
+      const after = await flapper.kicks();
+      const debt = await vatContract.sin(VOW_ADDRESS);
+      const Sin = await vowContract.Sin();
+      expect(before).lessThan(after);
+      expect(debt.sub(Sin)).eq(BigNumber.from(0));
     });
   });
 
@@ -95,16 +97,16 @@ describe("auction keeper", function () {
       forkNetwork(9702725);
     });
     it("Should start debt auction", async function () {
-      const { vow, vowContract } = await load();
+      const { vow, vatContract } = await load();
       vow.start();
       const flopperAddress = await vow.flopperAddress();
       const flopper = Flopper__factory.connect(flopperAddress, signer);
       const before = await flopper.kicks();
-      const eventFilter =
-        flopper.filters["Kick(uint256,uint256,uint256,address)"]();
-      flopper.on(eventFilter, async (after) => {
-        expect(before).lessThan(after);
-      });
+      await sleep(6000);
+      const after = await flopper.kicks();
+      const availableDai = await vatContract.dai(VOW_ADDRESS);
+      expect(before).lessThan(after);
+      expect(availableDai).eq(BigNumber.from(0));
     });
   });
 

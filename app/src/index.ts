@@ -33,9 +33,6 @@ async function main() {
     vowAddress: envs.VOW_ADDRESS,
     vatAddress: vatAddress,
     signer,
-    minHealingAmount: BigNumber.from(
-      "50000000000000000000000000000000000000000000000000"
-    ),
   });
 
   if (envs.RUN_CLIP === true) {
