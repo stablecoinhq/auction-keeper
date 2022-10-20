@@ -1,4 +1,5 @@
 import { BigNumber, ethers } from "ethers";
+import BaseService from "./common/base-service.class";
 import {
   Clip as ClipContract,
   Clip__factory,
@@ -50,24 +51,21 @@ function displayAuctionInfo(auctionInfo: AuctionInfo): void {
 }
 
 // 通貨毎にClipがあるので、それぞれインスタンス化必要がある
-export class Clip {
+export class Clip extends BaseService {
   readonly clip: ClipContract;
   readonly vat: VatContract;
   readonly ilk: string;
-  private signer: ethers.Wallet;
-  signerAddress: string;
 
   constructor(args: ClipConfig) {
     const { clipAddress, vatAddress, ilk, signer } = args;
-    this.signer = signer;
+    super(signer);
     this.ilk = ilk;
-    this.signerAddress = this.signer.address;
     this.clip = Clip__factory.connect(clipAddress, this.signer);
     this.vat = Vat__factory.connect(vatAddress, this.signer);
   }
 
   async hope() {
-    const allowed = await this.vat.can(this.signerAddress, this.clip.address);
+    const allowed = await this.vat.can(this.signer.address, this.clip.address);
     if (allowed.eq(1)) {
       return;
     } else {
@@ -93,23 +91,27 @@ export class Clip {
         "Kick(uint256,uint256,uint256,uint256,address,address,uint256)"
       ]();
     this.clip.on(kickEventFilter, async (...args) => {
-      const [auctionId] = args;
-      console.log(`Auction id: ${auctionId.toString()} started.`);
-      this._paricipateAuction(auctionId);
+      const [auctionId, , , , , , , eventTx] = args;
+      this._processEvent(eventTx, async () => {
+        console.log(`Auction id: ${auctionId.toString()} started.`);
+        this._paricipateAuction(auctionId);
+      });
     });
     const takeEventFilter =
       this.clip.filters[
         "Take(uint256,uint256,uint256,uint256,uint256,uint256,address)"
       ]();
     this.clip.on(takeEventFilter, async (...args) => {
-      const [id] = args;
-      const gem = await this.vat.gem(this.ilk, this.signerAddress);
-      console.log(
-        `Auction id ${id.toString()} success! Got token ${displayUnits(
-          gem,
-          unitContants.WAD
-        )}`
-      );
+      const [id, , , , , , , eventTx] = args;
+      this._processEvent(eventTx, async () => {
+        const gem = await this.vat.gem(this.ilk, this.signer.address);
+        console.log(
+          `Auction id ${id.toString()} success! Got token ${displayUnits(
+            gem,
+            unitContants.WAD
+          )}`
+        );
+      });
     });
   }
 

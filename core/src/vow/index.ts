@@ -8,6 +8,8 @@ import {
   Flopper__factory,
 } from "../types/ether-contracts";
 import { Events, BYTES_32 } from "./constants";
+import "../common/base-service.class";
+import BaseService from "../common/base-service.class";
 
 function toAddress(data: string): string {
   return `0x${data.slice(24)}`;
@@ -47,14 +49,13 @@ export interface VowState {
 // Surplus及びDebtオークションを開始させるBot
 // Surplusオークションは負債が0かつ、十分な余剰DAIが存在するときに開始できる
 // Debtオークションは余剰DAIが0かつ、負債が十分に存在するときに開始できる
-export class Vow {
+export class Vow extends BaseService {
   readonly vow: VowContract;
   readonly vat: VatContract;
-  private readonly signer: ethers.Wallet;
 
   constructor(config: VowConfig) {
     const { vowAddress, vatAddress, signer } = config;
-    this.signer = signer;
+    super(signer);
     this.vow = Vow__factory.connect(vowAddress, this.signer);
     this.vat = Vat__factory.connect(vatAddress, this.signer);
   }
@@ -103,56 +104,53 @@ export class Vow {
           this.vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](
             event
           );
-        this.vat.on(eventFilter, async (...args) => {
-          const [rawEvent] = args;
-          const parsedEvent = rawEvent as any as {
-            topics: string[];
-            data: string;
-          };
-          const vowAddressToCheck = this.vow.address.toLowerCase();
-          const [, arg1, arg2] = parsedEvent.topics;
-          // 4つ目の引数はdataをパースしないと取得できない
-          const arg4 = getArgumentFromRawData(parsedEvent.data, 4);
-          switch (event) {
-            case Events.grab:
-              if (toAddress(arg4) && toAddress(arg4) === vowAddressToCheck) {
-                console.log("Grab on vow address");
-                this._checkState();
-              }
-              break;
-            case Events.frob:
-              if (toAddress(arg4) && toAddress(arg4) === vowAddressToCheck) {
-                console.log("Frob on vow address");
-                this._checkState();
-              }
-              break;
-            case Events.move:
-              if (
-                (toAddress(arg1) && toAddress(arg1) === vowAddressToCheck) ||
-                (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck)
-              ) {
-                console.log("Move on vow address");
-                this._checkState();
-              }
-              break;
-            case Events.fold:
-              if (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck) {
-                console.log("Fold on vow address");
-                this._checkState();
-              }
-              break;
-            case Events.suck:
-              if (
-                (toAddress(arg1) && toAddress(arg1) === vowAddressToCheck) ||
-                (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck)
-              ) {
-                console.log("Suck on vow address");
-                this._checkState();
-              }
-              break;
-            default:
-              break;
-          }
+        this.vat.on(eventFilter, async (_a, _b, _c, _d, _e, eventTx) => {
+          this._processEvent(eventTx, async () => {
+            const vowAddressToCheck = this.vow.address.toLowerCase();
+            const [, arg1, arg2] = eventTx.topics;
+            // 4つ目の引数はdataをパースしないと取得できない
+            const arg4 = getArgumentFromRawData(eventTx.data, 4);
+            switch (event) {
+              case Events.grab:
+                if (toAddress(arg4) && toAddress(arg4) === vowAddressToCheck) {
+                  console.log("Grab on vow address");
+                  this._checkState();
+                }
+                break;
+              case Events.frob:
+                if (toAddress(arg4) && toAddress(arg4) === vowAddressToCheck) {
+                  console.log("Frob on vow address");
+                  this._checkState();
+                }
+                break;
+              case Events.move:
+                if (
+                  (toAddress(arg1) && toAddress(arg1) === vowAddressToCheck) ||
+                  (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck)
+                ) {
+                  console.log("Move on vow address");
+                  this._checkState();
+                }
+                break;
+              case Events.fold:
+                if (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck) {
+                  console.log("Fold on vow address");
+                  this._checkState();
+                }
+                break;
+              case Events.suck:
+                if (
+                  (toAddress(arg1) && toAddress(arg1) === vowAddressToCheck) ||
+                  (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck)
+                ) {
+                  console.log("Suck on vow address");
+                  this._checkState();
+                }
+                break;
+              default:
+                break;
+            }
+          });
         });
       }
     );

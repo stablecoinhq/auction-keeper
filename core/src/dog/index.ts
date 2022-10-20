@@ -10,6 +10,7 @@ import { ethers } from "ethers";
 import { parseEventsAndGroup, parseEventAndGroup } from "./event-parser";
 import { VaultCollection } from "./vault-collection";
 import { Events, VOID_ADDRESS, SPOT } from "./constants";
+import BaseService from "../common/base-service.class";
 
 interface VatIlkInfo {
   Art: BigNumber;
@@ -101,12 +102,11 @@ export interface DogConfig {
 }
 
 // Collateralオークションを開始する
-export class Dog {
+export class Dog extends BaseService {
   readonly vatContract: Promise<VatContract>; // Vatコントラクト
   readonly dog: DogContract; // Dogコントラクト
   readonly fromBlock: number; // 開始ブロック
   readonly toBlock: number | "latest"; // 最後のブロック、最新までの場合は"latest"
-  private readonly signer: ethers.Wallet; // ウォレット
   private vaultCollection: VaultCollection; // ilk毎に区分されたVault
   readonly signerAddress: string; // ウォレットのアドレス
   readonly Dirt: Promise<BigNumber>; // オークション数量
@@ -114,7 +114,7 @@ export class Dog {
 
   constructor(config: DogConfig) {
     const { dogAddress, signer, fromBlock, toBlock } = config;
-    this.signer = signer;
+    super(signer);
     this.signerAddress = this.signer.address;
     this.fromBlock = fromBlock;
     this.toBlock = toBlock;
@@ -201,38 +201,38 @@ export class Dog {
     const vat = await this.vatContract;
     console.log("Start listening to ongoing events...");
 
-    [Events.fold, Events.fork, Events.frob, Events.file].forEach(async (event) => {
-      const eventFilter =
-        vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](event);
-      vat.on(eventFilter, async (...args) => {
-        const [rawEvent] = args;
-        const parsedTopics = rawEvent as any as { topics: string[] };
-        const [, ilk, arg2] = parsedTopics.topics;
-        const eventRawData = rawEvent as any as { data: string };
+    [Events.fold, Events.fork, Events.frob, Events.file].forEach(
+      async (event) => {
+        const eventFilter =
+          vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](event);
+        vat.on(eventFilter, async (_a, _b, _c, _d, _e, eventTx) => {
+          const [, ilk, arg2] = eventTx.topics;
+          const eventRawData = eventTx as any as { data: string };
 
-        switch (event) {
-          case Events.fold:
-            // foldによって価格が変動した場合には調べる
-            console.log(`Price of ${ilk} changed, checking vaults`);
-            const targets = this.vaultCollection.getByIlk(ilk);
-            this._checkVaultCollections(targets);
-            break;
-          case Events.file:
-            // spotによって担保率が変動した際には、変動した通貨に関するVaultを調べる
-            if (arg2 === SPOT) {
-              console.log(`Safey margin of ${ilk} changed, checking vaults`);
+          switch (event) {
+            case Events.fold:
+              // foldによって価格が変動した場合には調べる
+              console.log(`Price of ${ilk} changed, checking vaults`);
               const targets = this.vaultCollection.getByIlk(ilk);
               this._checkVaultCollections(targets);
-            }
-            break;
-          default:
-            const vaultCollection = parseEventAndGroup(eventRawData.data);
-            this.vaultCollection.push(vaultCollection);
-            this._checkVaultCollections(vaultCollection);
-            break;
-        }
-      });
-    });
+              break;
+            case Events.file:
+              // spotによって担保率が変動した際には、変動した通貨に関するVaultを調べる
+              if (arg2 === SPOT) {
+                console.log(`Safey margin of ${ilk} changed, checking vaults`);
+                const targets = this.vaultCollection.getByIlk(ilk);
+                this._checkVaultCollections(targets);
+              }
+              break;
+            default:
+              const vaultCollection = parseEventAndGroup(eventRawData.data);
+              this.vaultCollection.push(vaultCollection);
+              this._checkVaultCollections(vaultCollection);
+              break;
+          }
+        });
+      }
+    );
     return;
   }
 
