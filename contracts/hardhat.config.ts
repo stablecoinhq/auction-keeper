@@ -3,16 +3,17 @@ import "@nomicfoundation/hardhat-toolbox";
 require("dotenv").config();
 
 const config: HardhatUserConfig = {
-  solidity: "0.8.17",
+  solidity: "0.5.12",
   // ここにローカル追加
   networks: {
     hardhat: {
       forking: {
         url: `https://mainnet.infura.io/v3/${process.env.INFURA_API_KEY!}`,
-        blockNumber: 14052120,
       },
     },
   },
 };
 
 export default config;
+
+// blockNumber: 14052120,

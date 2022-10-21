@@ -1,5 +1,11 @@
 import { expect } from "chai";
-import { ethers, network } from "hardhat";
+import {
+  VAT_ADDRESS,
+  VOW_ADDRESS,
+  signer,
+  forkNetwork,
+  sleep,
+} from "../src/common";
 import {
   Clip__factory,
   Flapper__factory,
@@ -13,31 +19,6 @@ import { BigNumber } from "ethers";
 
 require("dotenv").config();
 
-async function forkNetwork(n: number): Promise<void> {
-  const rpcURL = `https://mainnet.infura.io/v3/${process.env.INFURA_API_KEY!}`;
-  network.provider.request({
-    method: "hardhat_reset",
-    params: [
-      {
-        forking: {
-          jsonRpcUrl: rpcURL,
-          blockNumber: n,
-        },
-      },
-    ],
-  });
-}
-
-function sleep(ms: number) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-const signer = ethers.Wallet.fromMnemonic(
-  "test test test test test test test test test test test junk"
-).connect(ethers.provider);
-
-const VOW_ADDRESS = "0xA950524441892A31ebddF91d3cEEFa04Bf454466";
-const VAT_ADDRESS = "0x35D1b3F3D7966A1DFe207aa4514C12a259A0492B";
 async function load() {
   const vow = new Vow({
     vatAddress: VAT_ADDRESS,

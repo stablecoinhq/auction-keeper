@@ -12,7 +12,7 @@ import "../common/base-service.class";
 import BaseService from "../common/base-service.class";
 
 function toAddress(data: string): string {
-  return `0x${data.slice(24)}`;
+  return `0x${data.slice(26)}`;
 }
 
 export function getArgumentFromRawData(data: string, n: number): string {
@@ -137,6 +137,7 @@ export class Vow extends BaseService {
           this.vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](
             event
           );
+
         this.vat.on(eventFilter, async (strEventTx) => {
           const eventTx = strEventTx as any as {
             topics: string[];
@@ -146,17 +147,17 @@ export class Vow extends BaseService {
           this._processEvent(eventTx, async () => {
             const vowAddressToCheck = this.vow.address.toLowerCase();
             const [, arg1, arg2] = eventTx.topics;
-            // 4th argument must be retrieved from raw data
             const arg4 = getArgumentFromRawData(eventTx.data, 4);
+            const arg4Address = `0x${arg4.slice(24)}`;
             switch (event) {
               case Events.grab:
-                if (toAddress(arg4) && toAddress(arg4) === vowAddressToCheck) {
+                if (arg4 && arg4Address === vowAddressToCheck) {
                   console.log("Grab on vow address");
                   this._checkStateAndHeal();
                 }
                 break;
               case Events.frob:
-                if (toAddress(arg4) && toAddress(arg4) === vowAddressToCheck) {
+                if (arg4 && arg4Address === vowAddressToCheck) {
                   console.log("Frob on vow address");
                   this._checkStateAndHeal();
                 }
@@ -172,7 +173,7 @@ export class Vow extends BaseService {
                 break;
               case Events.fold:
                 if (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck) {
-                  console.log("Fold on vow address");
+                  console.log("Fold called");
                   this._checkStateAndHeal();
                 }
                 break;
@@ -215,7 +216,10 @@ export class Vow extends BaseService {
       ? fixedDebtAuctionSize
       : fixedSurplusAuctionSize;
     const [healingAmount, shouldHeal] = Vow.calculateHealingAmount(vowState);
-    if (shouldHeal || healingAmount.gte(minHealingAmount)) {
+    if (
+      healingAmount.gt(0) &&
+      (shouldHeal || healingAmount.gte(minHealingAmount))
+    ) {
       await this._heal(healingAmount);
     }
   }
