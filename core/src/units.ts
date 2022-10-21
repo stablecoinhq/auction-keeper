@@ -1,5 +1,4 @@
 import { BigNumber } from "ethers";
-// 単位変換
 
 // https://github.com/makerdao/dss/blob/master/DEVELOPING.md#units
 

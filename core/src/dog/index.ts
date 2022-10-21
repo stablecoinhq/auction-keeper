@@ -9,7 +9,7 @@ import { displayUnits, constants as unitContants } from "../units";
 import { ethers } from "ethers";
 import { parseEventsAndGroup, parseEventAndGroup } from "./event-parser";
 import { VaultCollection } from "./vault-collection";
-import { Events, VOID_ADDRESS, SPOT } from "./constants";
+import { FunctionSigs, VOID_ADDRESS, SPOT } from "./constants";
 import BaseService from "../common/base-service.class";
 
 interface VatIlkInfo {
@@ -46,12 +46,8 @@ function displayUrnInfo(
 ) {
   const { art, ink } = urnInfo;
   const { rate, spot } = ilkInfo;
-  // 現在の負債(DAI)
   const debt = art.mul(rate);
-  // 許容可能な負債(DAI)
   const maximumAllowedDebt = ink.mul(spot);
-
-  // 許容可能な負債 - 現在の負債 = 精算までのDAI
   const untilLiquidation = maximumAllowedDebt.sub(debt);
   const normalized = {
     ilk: ilk,
@@ -71,8 +67,13 @@ function displayUrnInfo(
   console.log(normalized);
 }
 
-// ブロックを一定数分割する
-// 過去のイベントをまとめて取得しようとすると失敗するため
+/**
+ * Split into ranges of blocks
+ * This is to avoid full node from throwing error when fetching past events
+ * @param from Oldest block
+ * @param latest Highest block
+ * @returns
+ */
 function splitBlocks(
   from: number,
   latest: number
@@ -87,30 +88,81 @@ function splitBlocks(
   return ls;
 }
 
-// 精算可能Vaultの情報
+/**
+ * Information of a liquidatable vault
+ */
 export interface CanBark {
-  ilk: string; // 通貨
-  address: string; // Vaultのアドレス
+  /**
+   * Currency type
+   */
+  ilk: string;
+  /**
+   * Address of a vault
+   */
+  address: string;
 }
 
-// Config
+/**
+ * Configuration
+ */
 export interface DogConfig {
+  /**
+   * Address of a dog contract
+   */
   dogAddress: string;
+  /**
+   * Signer
+   */
   signer: ethers.Wallet;
+  /**
+   * Block to start from
+   */
   fromBlock: number;
+  /**
+   * Block to end
+   */
   toBlock: number | "latest";
 }
 
-// Collateralオークションを開始する
+/**
+ * Service that interacts with Dog/Vat contract
+ * - Listens to events emitted from Vat contract
+ * - Collect vault information that is being managed by Vat contract
+ * - Start collateral auction if needed
+ */
 export class Dog extends BaseService {
-  readonly vatContract: Promise<VatContract>; // Vatコントラクト
-  readonly dog: DogContract; // Dogコントラクト
-  readonly fromBlock: number; // 開始ブロック
-  readonly toBlock: number | "latest"; // 最後のブロック、最新までの場合は"latest"
-  private vaultCollection: VaultCollection; // ilk毎に区分されたVault
-  readonly signerAddress: string; // ウォレットのアドレス
-  readonly Dirt: Promise<BigNumber>; // オークション数量
-  readonly Hole: Promise<BigNumber>; // Collateralオークション総数量
+  /**
+   * Vat contract
+   */
+  readonly vatContract: Promise<VatContract>;
+  /**
+   * Dog contract
+   */
+  readonly dog: DogContract;
+  /**
+   * Block to start from
+   */
+  readonly fromBlock: number;
+  /**
+   * Block to end, "latest" if you want to fetch all the events up until now
+   */
+  readonly toBlock: number | "latest";
+  /**
+   * List of vaults grouped by ilk
+   */
+  private vaultCollection: VaultCollection;
+  /**
+   * Wallet address
+   */
+  readonly signerAddress: string;
+  /**
+   * Amount of DAI that's being put into collateral auction
+   */
+  readonly Dirt: Promise<BigNumber>;
+  /**
+   * Total amount of DAI that can be put into collateral auction
+   */
+  readonly Hole: Promise<BigNumber>;
 
   constructor(config: DogConfig) {
     const { dogAddress, signer, fromBlock, toBlock } = config;
@@ -127,7 +179,11 @@ export class Dog extends BaseService {
     this.Hole = this.dog.Hole();
   }
 
-  // Clipアドレス一覧を返却
+  /**
+   * Return addresses of given ilks
+   * @param ilks List of ilks
+   * @returns
+   */
   async getClipAddresses(
     ilks: string[]
   ): Promise<{ ilk: string; address: string }[]> {
@@ -142,11 +198,17 @@ export class Dog extends BaseService {
     );
   }
 
-  // Vatコントラクトのアドレスを返却する
+  /**
+   * Return contract address of a vat contract
+   */
   async getVatAddress() {
     return (await this.vatContract).address;
   }
 
+  /**
+   * Start listening to Dog/Vat contract and handle them accordingly
+   * @returns
+   */
   async start(this: Dog): Promise<void> {
     const vat = await this.vatContract;
     const isVatLive = (await vat.live()).eq(1);
@@ -161,10 +223,12 @@ export class Dog extends BaseService {
     }
 
     await this._lookupFromPastEvents();
-    this._listenToEvents();
+    this._handleEvents();
   }
 
-  // 過去のイベントを参照し、Vaultを取得する
+  /**
+   * Collect vault information by looking into past events
+   */
   private async _lookupFromPastEvents(): Promise<void> {
     console.log("Fetching past events...");
     const latestBlock =
@@ -175,12 +239,15 @@ export class Dog extends BaseService {
 
     const vaultCollections = await Promise.all(
       bunch.map(async ({ from, to }) => {
-        return [Events.fork, Events.frob].reduce(async (prev, event) => {
-          const prevs = await prev;
-          const eventRawData = await this._getPastEvents(from, to, event);
-          const urnsByIlk = parseEventsAndGroup(eventRawData, prevs);
-          return urnsByIlk;
-        }, Promise.resolve(new VaultCollection()));
+        return [FunctionSigs.fork, FunctionSigs.frob].reduce(
+          async (prev, event) => {
+            const prevs = await prev;
+            const eventRawData = await this._getPastEvents(from, to, event);
+            const urnsByIlk = parseEventsAndGroup(eventRawData, prevs);
+            return urnsByIlk;
+          },
+          Promise.resolve(new VaultCollection())
+        );
       })
     );
 
@@ -193,50 +260,59 @@ export class Dog extends BaseService {
     });
   }
 
-  // 現在のイベントを取得する
-  private async _listenToEvents(): Promise<void> {
+  /**
+   * Handle current events
+   */
+  private async _handleEvents(): Promise<void> {
     if (this.toBlock !== "latest") {
       return;
     }
     const vat = await this.vatContract;
     console.log("Start listening to ongoing events...");
 
-    [Events.fold, Events.fork, Events.frob, Events.file].forEach(
-      async (event) => {
-        const eventFilter =
-          vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](event);
-        vat.on(eventFilter, async (_a, _b, _c, _d, _e, eventTx) => {
-          const [, ilk, arg2] = eventTx.topics;
-          const eventRawData = eventTx as any as { data: string };
+    [
+      FunctionSigs.fold,
+      FunctionSigs.fork,
+      FunctionSigs.frob,
+      FunctionSigs.file,
+    ].forEach(async (event) => {
+      const eventFilter =
+        vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](event);
+      vat.on(eventFilter, async (_a, _b, _c, _d, _e, eventTx) => {
+        const [, ilk, arg2] = eventTx.topics;
+        const eventRawData = eventTx as any as { data: string };
 
-          switch (event) {
-            case Events.fold:
-              // foldによって価格が変動した場合には調べる
-              console.log(`Price of ${ilk} changed, checking vaults`);
+        switch (event) {
+          case FunctionSigs.fold:
+            // Check vault that are affected by fold (Change of price)
+            console.log(`Price of ${ilk} changed, checking vaults`);
+            const targets = this.vaultCollection.getByIlk(ilk);
+            this._checkVaultCollections(targets);
+            break;
+          case FunctionSigs.file:
+            // Check vaults that are affected by spot (Change of stability fee rate)
+            if (arg2 === SPOT) {
+              console.log(`Safey margin of ${ilk} changed, checking vaults`);
               const targets = this.vaultCollection.getByIlk(ilk);
               this._checkVaultCollections(targets);
-              break;
-            case Events.file:
-              // spotによって担保率が変動した際には、変動した通貨に関するVaultを調べる
-              if (arg2 === SPOT) {
-                console.log(`Safey margin of ${ilk} changed, checking vaults`);
-                const targets = this.vaultCollection.getByIlk(ilk);
-                this._checkVaultCollections(targets);
-              }
-              break;
-            default:
-              const vaultCollection = parseEventAndGroup(eventRawData.data);
-              this.vaultCollection.push(vaultCollection);
-              this._checkVaultCollections(vaultCollection);
-              break;
-          }
-        });
-      }
-    );
+            }
+            break;
+          default:
+            const vaultCollection = parseEventAndGroup(eventRawData.data);
+            this.vaultCollection.push(vaultCollection);
+            this._checkVaultCollections(vaultCollection);
+            break;
+        }
+      });
+    });
     return;
   }
 
-  // 指定された通貨とそのVaultを調べる
+  /**
+   * Check all the vaults
+   * @param vaultCollections Collection of vaults
+   * @returns
+   */
   private async _checkVaultCollections(
     vaultCollections: VaultCollection
   ): Promise<CanBark[]> {
@@ -244,7 +320,7 @@ export class Dog extends BaseService {
       Array.from(vaultCollections.entries()).map(
         async ([ilk, urnAddresses]) => {
           const addrs: string[] = Array.from(urnAddresses);
-          const unsafeVaults: CanBark[] = await this._checkUrns(ilk, addrs);
+          const unsafeVaults: CanBark[] = await this._checkVaults(ilk, addrs);
           const barkResult = unsafeVaults.reduce(async (prev, unsafeVault) => {
             const result = await prev;
             const { ilk, address } = unsafeVault;
@@ -265,20 +341,27 @@ export class Dog extends BaseService {
     return result.flat();
   }
 
-  // Collateralオークションを開始する
+  /**
+   * Start collateral auction
+   * @param ilk ilk
+   * @param address vault address
+   * @returns
+   */
   private async _startCollateralAuction(
     ilk: string,
     address: string
   ): Promise<ethers.ContractTransaction | undefined> {
     console.log(`Barking at ilk: ${ilk}, address: ${address}`);
-    return this.dog.bark(ilk, address, this.signer.address).catch((e) => {
-      console.log(`Barking failed: ${e.error.reason}`);
-      return undefined;
-    });
+    return this._submitTx(this.dog.bark(ilk, address, this.signer.address));
   }
 
-  // 任意のVaultを調べる
-  private async _checkUrns(
+  /**
+   * Check vaults of given ilk
+   * @param ilk
+   * @param urnAddresses
+   * @returns
+   */
+  private async _checkVaults(
     this: Dog,
     ilk: string,
     urnAddresses: string[]
@@ -320,20 +403,25 @@ export class Dog extends BaseService {
       });
   }
 
-  // 指定したブロックの範囲のイベントを取得する
+  // Retrieve events in the specified block range.
+  /**
+   * Fetch
+   * @param from
+   * @param to
+   * @param functionSig
+   * @returns
+   */
   private async _getPastEvents(
     from: number,
     to: number | "latest",
-    currentEvent: string
+    functionSig: string
   ): Promise<string[]> {
     console.log(
       `Fetching events from block ${from.toLocaleString()} to ${to.toLocaleString()}`
     );
     const vat = await this.vatContract;
     const eventFilter =
-      vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](
-        currentEvent
-      );
+      vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](functionSig);
     const events = await vat.queryFilter(eventFilter, from, to);
     const eventRawData = events.map((logNoteEvent) => {
       return logNoteEvent.data;
@@ -341,7 +429,10 @@ export class Dog extends BaseService {
     return eventRawData;
   }
 
-  // Vaultの精算可能か検証する
+  /**
+   * Check if given vault can be liquidated
+   * @returns
+   */
   static canBark(
     Hole: BigNumber,
     Dirt: BigNumber,
@@ -352,22 +443,23 @@ export class Dog extends BaseService {
     const { ink, art } = urnInfo;
     const { spot, rate, dust } = vatIlkInfo;
     const { hole, dirt, chop } = dogIlk;
-    // オークション可能か
+    // Do we have room to start auction?
     const room = Hole.sub(Dirt).lte(hole.sub(dirt))
       ? Hole.sub(Dirt)
       : hole.sub(dirt);
-    // roomを正規化
+    // Normalize room
     const normalizedRoom = room.mul(unitContants.WAD).div(rate).div(chop);
     const dart = art.lte(normalizedRoom) ? art : normalizedRoom;
-    // 精算されるVaultの金額が少額
+    // Vault is dusty
     const isDust = dart.mul(rate).lt(dust);
-    // Spot(通貨毎のDAI最大発行可能枚数)が0以下
-    // ink(担保されている通貨数量) * Spotが負債(art * rate)より小さければ安全
+    // Check that
+    // - Spot(Maximum number of DAI per currency that can be issued) is non-zero
+    // - INK (quantity of currency collateralized) * Spot is less than debt (art * rate).
     const isUnsafeVault = spot.gt(0) && ink.mul(spot).lt(art.mul(rate));
-    // dart, dinkがオーバーフローしていない
+    // Value dart, dink is valid
     const isDartUnsafe = dart.gt(constants.MaxUint256);
     const dink = art.eq(0) ? BigNumber.from(0) : ink.mul(dart).div(art);
-    // dinkが0より小さい
+    // dink is less than zero
     const isDinkBelowZero = dink.lte(0);
     const isDinkUnsafe = dink.gt(constants.MaxUint256);
     if (isDartUnsafe || isDinkUnsafe || isDinkBelowZero || isDust) {

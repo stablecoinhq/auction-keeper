@@ -1,4 +1,4 @@
-import { ethers } from "ethers";
+import { ContractTransaction, ethers } from "ethers";
 
 // 全てのサービスの基本クラス
 export default abstract class BaseService {
@@ -25,13 +25,14 @@ export default abstract class BaseService {
   }
 
   // トランザクション発行時に例外を処理する
-  protected async _submitTx<T>(txEvent: Promise<T>) {
-    txEvent.catch((e) => {
+  protected async _submitTx<T>(submitTx: Promise<T>): Promise<T | undefined> {
+    return submitTx.catch((e) => {
       if ("error" in e) {
         console.log(`Transaction failed with error ${e.error.reason}`);
       } else {
         console.log(e);
       }
+      return undefined;
     });
   }
 }

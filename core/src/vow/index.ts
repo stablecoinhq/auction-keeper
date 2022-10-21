@@ -137,7 +137,7 @@ export class Vow extends BaseService {
           this._processEvent(eventTx, async () => {
             const vowAddressToCheck = this.vow.address.toLowerCase();
             const [, arg1, arg2] = eventTx.topics;
-            // 4つ目の引数はdataをパースしないと取得できない
+            // 4th argument must be retrieved from raw data
             const arg4 = getArgumentFromRawData(eventTx.data, 4);
             switch (event) {
               case Events.grab:
