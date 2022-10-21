@@ -8,6 +8,9 @@ import {
 } from "./types/ether-contracts";
 import { displayUnits, constants as unitContants } from "./units";
 
+/**
+ * Configuration for clip
+ */
 export interface ClipConfig {
   clipAddress: string;
   vatAddress: string;
@@ -15,15 +18,42 @@ export interface ClipConfig {
   signer: ethers.Wallet;
 }
 
+/**
+ * Auction information
+ */
 export interface AuctionInfo {
-  auctionId: BigNumber; // オークションId
-  tab: BigNumber; // 精算に必要なDAI
-  lot: BigNumber; // 精算される通貨総数量
-  usr: string; // 対象のVault
-  tic: BigNumber; // オークション開始時刻
-  top: BigNumber; // 開始価格
-  auctionPrice: BigNumber; //現在の価格
-  ended: boolean; // 再オークション
+  /**
+   * Auction id
+   */
+  auctionId: BigNumber;
+  /**
+   * Dai to raise
+   */
+  tab: BigNumber;
+  /**
+   * Collateral to sell [wad]
+   */
+  lot: BigNumber;
+  /**
+   * Address of an liquidated vault
+   */
+  usr: string;
+  /**
+   * Auction start time
+   */
+  tic: BigNumber;
+  /**
+   * Starting price
+   */
+  top: BigNumber;
+  /**
+   * Current bidding price
+   */
+  auctionPrice: BigNumber;
+  /**
+   * Did auction end
+   */
+  ended: boolean;
 }
 
 function displayAuctionInfo(auctionInfo: AuctionInfo): void {
@@ -50,7 +80,7 @@ function displayAuctionInfo(auctionInfo: AuctionInfo): void {
   console.log(normalised);
 }
 
-// 通貨毎にClipがあるので、それぞれインスタンス化必要がある
+// Each token has is own Clip contract so we need to instantiate them respectively
 export class Clip extends BaseService {
   readonly clip: ClipContract;
   readonly vat: VatContract;
@@ -115,7 +145,6 @@ export class Clip extends BaseService {
     });
   }
 
-  // 与えられたオークションIDに参加する
   private async _paricipateAuction(auctionId: BigNumber) {
     const { tic, top, tab, lot, usr } = await this.clip.sales(auctionId);
     const { needsRedo, price } = await this.clip.getStatus(auctionId);

@@ -19,7 +19,7 @@ export function getArgumentFromRawData(data: string, n: number): string {
   if (!data) {
     return "";
   }
-  // 0x + 64バイト + 4バイト + １引数32バイト * 3
+  // 0x + 64Bytes + 4Bytes(ilk) + １argument is 32 bytes
   return data
     .slice(2)
     .slice(BYTES_32 * 2)
@@ -30,25 +30,53 @@ export function getArgumentFromRawData(data: string, n: number): string {
 
 // Config
 export interface VowConfig {
-  vowAddress: string; // Vowコントラクトのアドレス
-  vatAddress: string; // Vatコントラクトのアドレス
+  vowAddress: string; // Address of a vow contract
+  vatAddress: string; // Address of a vat contract
   signer: ethers.Wallet; // Signer
 }
 
-// Vowコントラクトの状態
+/**
+ * State of a vow contract
+ */
 export interface VowState {
-  fixedDebtAuctionSize: BigNumber; // sump
-  fixedSurplusAuctionSize: BigNumber; // bump
-  auctionSizeBuffer: BigNumber; // hump
-  queuedDebt: BigNumber; // Sin
-  onAuctionDebt: BigNumber; //  Ash
-  availableDai: BigNumber; // dai
-  unbackedDai: BigNumber; // sin
+  /**
+   * sump
+   */
+  fixedDebtAuctionSize: BigNumber;
+  /**
+   * bump
+   */
+  fixedSurplusAuctionSize: BigNumber;
+  /**
+   * hump
+   */
+  auctionSizeBuffer: BigNumber;
+  /**
+   * Sin
+   */
+  queuedDebt: BigNumber;
+  /**
+   * Ash
+   */
+  onAuctionDebt: BigNumber;
+  /**
+   * dai
+   */
+  availableDai: BigNumber;
+  /**
+   * sin
+   */
+  unbackedDai: BigNumber;
 }
 
 // Surplus及びDebtオークションを開始させるBot
-// Surplusオークションは負債が0かつ、十分な余剰DAIが存在するときに開始できる
-// Debtオークションは余剰DAIが0かつ、負債が十分に存在するときに開始できる
+// Surplus auctions can be started when debt is zero and there is sufficient surplus DAI.
+// Debt auctions can be initiated when surplus DAI is zero and there is sufficient debt within the system
+/**
+ * Service handling events emitted from Vow/Vat contract
+ * - Start surplus auction
+ * - Start debt auction
+ */
 export class Vow extends BaseService {
   readonly vow: VowContract;
   readonly vat: VatContract;
@@ -62,9 +90,9 @@ export class Vow extends BaseService {
 
   async start() {
     await this._checkVowState();
-    this._listenToEvents();
-    this._listenToSurplusAuction();
-    this._listenToDebtAuction();
+    this._handleVowEvents();
+    this._handleSurplusAuctionEvents();
+    this._handleDebtAuctionEvents();
   }
 
   async flapperAddress() {
@@ -74,8 +102,11 @@ export class Vow extends BaseService {
     return this.vow.flopper();
   }
 
-  // vowコントラクトのイベントをListenし、オークションが開始可能か調べる
-  private async _listenToEvents(): Promise<void> {
+  /**
+   * Listen to events emitted from vow contract and handle them
+   * accordingly
+   */
+  private async _handleVowEvents(): Promise<void> {
     console.log("Listening to heal events...");
     const healEventFilter = this.vow.filters[
       "LogNote(bytes4,address,bytes32,bytes32,bytes)"
@@ -91,13 +122,11 @@ export class Vow extends BaseService {
       }
     });
 
-    // Vowコントラクトの財務状況確認
-    // Vatコントラクトの以下の関数の引数がvowコントラクトのアドレスなら調べる
-    // grab(bytes32,address,address,address,int256,int256): 4つ目の引数
-    // frob(bytes32,address,address,address,int256,int256): 4つ目の引数
-    // move(address,address,uint256): 1,2つ目の引数
-    // fold(bytes32,address,int256): 2つ目の引数
-    // suck(address,address,uint256): 1,2つ目の引数
+    // grab(bytes32,address,address,address,int256,int256): 4th
+    // frob(bytes32,address,address,address,int256,int256): 4th
+    // move(address,address,uint256): 1st and 2nd
+    // fold(bytes32,address,int256): 2nd
+    // suck(address,address,uint256): 1st and 2nd
     [Events.grab, Events.frob, Events.move, Events.fold, Events.suck].forEach(
       async (event) => {
         const eventFilter =
@@ -114,13 +143,13 @@ export class Vow extends BaseService {
               case Events.grab:
                 if (toAddress(arg4) && toAddress(arg4) === vowAddressToCheck) {
                   console.log("Grab on vow address");
-                  this._checkState();
+                  this._checkStateAndHeal();
                 }
                 break;
               case Events.frob:
                 if (toAddress(arg4) && toAddress(arg4) === vowAddressToCheck) {
                   console.log("Frob on vow address");
-                  this._checkState();
+                  this._checkStateAndHeal();
                 }
                 break;
               case Events.move:
@@ -129,13 +158,13 @@ export class Vow extends BaseService {
                   (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck)
                 ) {
                   console.log("Move on vow address");
-                  this._checkState();
+                  this._checkStateAndHeal();
                 }
                 break;
               case Events.fold:
                 if (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck) {
                   console.log("Fold on vow address");
-                  this._checkState();
+                  this._checkStateAndHeal();
                 }
                 break;
               case Events.suck:
@@ -144,7 +173,7 @@ export class Vow extends BaseService {
                   (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck)
                 ) {
                   console.log("Suck on vow address");
-                  this._checkState();
+                  this._checkStateAndHeal();
                 }
                 break;
               default:
@@ -156,7 +185,9 @@ export class Vow extends BaseService {
     );
   }
 
-  // Check vow state, start auction if needed
+  /**
+   * Check the state of vow contract, start auction or heal if needed
+   */
   private async _checkVowState() {
     const vowState = await this._getVowState();
     const canFlap = Vow.canFlap(vowState);
@@ -180,7 +211,10 @@ export class Vow extends BaseService {
     }
   }
 
-  private async _checkState() {
+  /**
+   * Check the state of vow contract, heal if needed
+   */
+  private async _checkStateAndHeal() {
     const vowState = await this._getVowState();
     const { fixedSurplusAuctionSize, fixedDebtAuctionSize } = vowState;
     const minHealingAmount = fixedDebtAuctionSize.lt(fixedSurplusAuctionSize)
@@ -192,8 +226,10 @@ export class Vow extends BaseService {
     }
   }
 
-  // flapperコントラクトのイベントをListenし、Surplusオークションが開始されたか調べる
-  private async _listenToSurplusAuction() {
+  /**
+   * Listen to flapper contract, check if the auction has started
+   */
+  private async _handleSurplusAuctionEvents() {
     const flapperAddress = await this.vow.flapper();
     const flapper = Flapper__factory.connect(flapperAddress, this.signer);
     const flapperEventFilter =
@@ -208,8 +244,10 @@ export class Vow extends BaseService {
     });
   }
 
-  // flopperコントラクトのイベントをListenし、Debtオークションが開始されたか調べる
-  private async _listenToDebtAuction() {
+  /**
+   * Listen to flopper contract, check if the auction has started
+   */
+  private async _handleDebtAuctionEvents() {
     const flopperAddress = await this.vow.flopper();
     const flopper = Flopper__factory.connect(flopperAddress, this.signer);
     const flopperEventFilter =
@@ -225,7 +263,9 @@ export class Vow extends BaseService {
     });
   }
 
-  // Surplusオークションを開始する
+  /**
+   * Start surplus auction
+   */
   private async _startSurplusAuction() {
     console.log("Starting surplus auction.");
     this.vow.flap().catch((e) => {
@@ -235,7 +275,9 @@ export class Vow extends BaseService {
     });
   }
 
-  // Debtオークションを開始する
+  /**
+   * Start debt auction
+   */
   private async _startDebtAuction() {
     console.log("Starting debt auction.");
     this.vow.flop().catch((e) => {
@@ -245,7 +287,10 @@ export class Vow extends BaseService {
     });
   }
 
-  // heal()を呼ぶ
+  /**
+   * Call heal()
+   * @param healingAmount Amount to heal
+   */
   private async _heal(healingAmount: BigNumber) {
     console.log(`Healing with ${healingAmount.toString()}`);
     this.vow.heal(healingAmount).catch((e) => {
@@ -253,7 +298,10 @@ export class Vow extends BaseService {
     });
   }
 
-  // Vowコントラクトの状態を取得する
+  /**
+   * Acquire the state of vow contract
+   * @returns State of vow contract
+   */
   private async _getVowState(): Promise<VowState> {
     // dai
     const availableDai = await this.vat.dai(this.vow.address);
@@ -280,7 +328,11 @@ export class Vow extends BaseService {
     };
   }
 
-  // Surplusオークションを開始できるか調べる
+  /**
+   * Check if surplus auction can be started
+   * @param vowState State of vow contract
+   * @returns
+   */
   static canFlap(vowState: VowState): boolean {
     const {
       fixedSurplusAuctionSize,
@@ -299,7 +351,11 @@ export class Vow extends BaseService {
     return isSufficientSurplus && isDebtZero;
   }
 
-  // Debtオークションを開始できるか調べる
+  /**
+   * Check if debt auction can be started
+   * @param vowState State of vow contract
+   * @returns
+   */
   static canFlop(vowState: VowState): boolean {
     const {
       fixedDebtAuctionSize,
@@ -315,7 +371,12 @@ export class Vow extends BaseService {
     return hasSufficientDebt && hasNoSurplus;
   }
 
-  // Heal可能な数量及び、オークション可能の有無のフラグを返す
+  /**
+   * Calculate healing amount and return a flag indicating whether an auction can be
+   * started
+   * @param vowState State of vow contract
+   * @returns
+   */
   static calculateHealingAmount(vowState: VowState): [BigNumber, boolean] {
     const {
       fixedSurplusAuctionSize,
@@ -328,7 +389,8 @@ export class Vow extends BaseService {
     } = vowState;
 
     const remainingDebt = unbackedDai.sub(queuedDebt).sub(onAuctionDebt);
-    // 負債、資産いずれかが0ならfalse
+
+    // If the debt or the surplus is 0, return [0, false]
     if (remainingDebt.lte(0) || availableDai.lte(0)) {
       return [BigNumber.from(0), false];
     }
