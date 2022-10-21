@@ -1,38 +1,48 @@
 import { ContractTransaction, ethers } from "ethers";
 
-// 全てのサービスの基本クラス
+/**
+ * Base class for all services
+ */
 export default abstract class BaseService {
   processedTxHashes: Set<string> = new Set();
 
   constructor(protected readonly signer: ethers.Wallet) {}
 
-  // 開始
+  /**
+   * Start service
+   */
   abstract start(): Promise<void>;
 
-  // 同じイベントは処理しない
+  /** Process events
+   */
   protected async _processEvent(
     event: { transactionHash: string },
     processFunction: () => Promise<void>
   ): Promise<void> {
     if (this.processedTxHashes.has(event.transactionHash)) {
-      console.log(`Event ${event.transactionHash} already processed`);
       return;
     } else {
-      console.log(`Processing event ${event.transactionHash}`);
       this.processedTxHashes.add(event.transactionHash);
       await processFunction();
     }
   }
 
-  // トランザクション発行時に例外を処理する
-  protected async _submitTx<T>(submitTx: Promise<T>): Promise<T | undefined> {
-    return submitTx.catch((e) => {
+  // Handle exceptions when exception occurs
+  // TODO: store db, send message via slack
+  protected async _submitTx(
+    txEvent: Promise<ContractTransaction | undefined>
+  ): Promise<ContractTransaction | undefined> {
+    const result = await txEvent.catch((e) => {
       if ("error" in e) {
         console.log(`Transaction failed with error ${e.error.reason}`);
       } else {
-        console.log(e);
+        console.log(e.message);
       }
       return undefined;
     });
+    if (result) {
+      console.log(`Transaction submitted ${result.hash}`);
+    }
+    return result;
   }
 }

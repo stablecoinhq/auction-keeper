@@ -278,31 +278,38 @@ export class Dog extends BaseService {
     ].forEach(async (event) => {
       const eventFilter =
         vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](event);
-      vat.on(eventFilter, async (_a, _b, _c, _d, _e, eventTx) => {
-        const [, ilk, arg2] = eventTx.topics;
-        const eventRawData = eventTx as any as { data: string };
+      vat.on(eventFilter, async (strEventTx) => {
+        const eventTx = strEventTx as any as {
+          topics: string[];
+          data: string;
+          transactionHash: string;
+        };
+        this._processEvent(eventTx, async () => {
+          const [, ilk, arg2] = eventTx.topics;
+          const eventRawData = eventTx.data;
 
-        switch (event) {
-          case FunctionSigs.fold:
-            // Check vault that are affected by fold (Change of price)
-            console.log(`Price of ${ilk} changed, checking vaults`);
-            const targets = this.vaultCollection.getByIlk(ilk);
-            this._checkVaultCollections(targets);
-            break;
-          case FunctionSigs.file:
-            // Check vaults that are affected by spot (Change of stability fee rate)
-            if (arg2 === SPOT) {
-              console.log(`Safey margin of ${ilk} changed, checking vaults`);
+          switch (event) {
+            case FunctionSigs.fold:
+              // Check vault that are affected by fold (Change of price)
+              console.log(`Price of ${ilk} changed, checking vaults`);
               const targets = this.vaultCollection.getByIlk(ilk);
               this._checkVaultCollections(targets);
-            }
-            break;
-          default:
-            const vaultCollection = parseEventAndGroup(eventRawData.data);
-            this.vaultCollection.push(vaultCollection);
-            this._checkVaultCollections(vaultCollection);
-            break;
-        }
+              break;
+            case FunctionSigs.file:
+              // Check vaults that are affected by spot (Change of stability fee rate)
+              if (arg2 === SPOT) {
+                console.log(`Safey margin of ${ilk} changed, checking vaults`);
+                const targets = this.vaultCollection.getByIlk(ilk);
+                this._checkVaultCollections(targets);
+              }
+              break;
+            default:
+              const vaultCollection = parseEventAndGroup(eventRawData);
+              this.vaultCollection.push(vaultCollection);
+              this._checkVaultCollections(vaultCollection);
+              break;
+          }
+        });
       });
     });
     return;
@@ -454,7 +461,7 @@ export class Dog extends BaseService {
     const isDust = dart.mul(rate).lt(dust);
     // Check that
     // - Spot(Maximum number of DAI per currency that can be issued) is non-zero
-    // - INK (quantity of currency collateralized) * Spot is less than debt (art * rate).
+    // - Ink (quantity of currency collateralized) * Spot is less than debt (art * rate).
     const isUnsafeVault = spot.gt(0) && ink.mul(spot).lt(art.mul(rate));
     // Value dart, dink is valid
     const isDartUnsafe = dart.gt(constants.MaxUint256);

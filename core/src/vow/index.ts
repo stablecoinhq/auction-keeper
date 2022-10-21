@@ -113,13 +113,17 @@ export class Vow extends BaseService {
     ](Events.heal);
     this.vow.on(healEventFilter, async (...args) => {
       const [rawEvent] = args;
-      const parsedTopics = rawEvent as any as { topics: string[] };
-      const [functionSig] = parsedTopics.topics;
-
-      if (functionSig === Events.heal) {
-        console.log(`Heal event triggered, checking vow state`);
-        this._checkVowState();
-      }
+      const eventTx = rawEvent as any as {
+        topics: string[];
+        transactionHash: string;
+      };
+      this._processEvent(eventTx, async () => {
+        const [functionSig] = eventTx.topics;
+        if (functionSig === Events.heal) {
+          console.log(`Heal event triggered, checking vow state`);
+          this._checkVowState();
+        }
+      });
     });
 
     // grab(bytes32,address,address,address,int256,int256): 4th
@@ -133,7 +137,12 @@ export class Vow extends BaseService {
           this.vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](
             event
           );
-        this.vat.on(eventFilter, async (_a, _b, _c, _d, _e, eventTx) => {
+        this.vat.on(eventFilter, async (strEventTx) => {
+          const eventTx = strEventTx as any as {
+            topics: string[];
+            data: string;
+            transactionHash: string;
+          };
           this._processEvent(eventTx, async () => {
             const vowAddressToCheck = this.vow.address.toLowerCase();
             const [, arg1, arg2] = eventTx.topics;
@@ -280,11 +289,7 @@ export class Vow extends BaseService {
    */
   private async _startDebtAuction() {
     console.log("Starting debt auction.");
-    this.vow.flop().catch((e) => {
-      console.log(
-        `Debt auction cannot be started with reason: ${e.error.reason}`
-      );
-    });
+    this._submitTx(this.vow.flop());
   }
 
   /**
@@ -293,9 +298,7 @@ export class Vow extends BaseService {
    */
   private async _heal(healingAmount: BigNumber) {
     console.log(`Healing with ${healingAmount.toString()}`);
-    this.vow.heal(healingAmount).catch((e) => {
-      console.log(`Heal was not successful with reason: ${e.error.reason}`);
-    });
+    this._submitTx(this.vow.heal(healingAmount));
   }
 
   /**
