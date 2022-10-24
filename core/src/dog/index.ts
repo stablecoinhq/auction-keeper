@@ -290,13 +290,13 @@ export class Dog extends BaseService {
 
           switch (event) {
             case FunctionSigs.fold:
-              // Check vault that are affected by fold (Change of price)
-              console.log(`Price of ${ilk} changed, checking vaults`);
+              // Check vault that are affected by fold (Change of stability fee rate)
+              console.log(`Fee rate of ${ilk} changed, checking vaults`);
               const targets = this.vaultCollection.getByIlk(ilk);
               this._checkVaultCollections(targets);
               break;
             case FunctionSigs.file:
-              // Check vaults that are affected by spot (Change of stability fee rate)
+              // Check vaults that are affected by spot (Change of token price)
               if (arg2 === SPOT) {
                 console.log(`Safey margin of ${ilk} changed, checking vaults`);
                 const targets = this.vaultCollection.getByIlk(ilk);

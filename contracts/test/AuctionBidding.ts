@@ -104,9 +104,7 @@ describe("Surplus auction", function () {
       const { id, auctionType, bid, lot, guy, price, tic } = auctions[0];
       expect(guy).not.eq(signer.address);
       expect(bid).eq(BigNumber.from(0));
-      expect(lot).eq(
-        BigNumber.from("30000000000000000000000000000000000000000000000000")
-      );
+      expect(lot).eq(surplusAuctionAmount);
       expect(id).eq(BigNumber.from(1));
       expect(price).eq(BigNumber.from(1));
       expect(auctionType).eq(AuctionType.Surplus);
