@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
 
 import { getEnvs } from "./config";
-import { Dog, Clip, Vow, Auction } from "@auction-keeper/core";
+import { Dog, Clip, Vow, Auction, WebSocketProvider } from "@auction-keeper/core";
 import BaseService from "@auction-keeper/core/src/common/base-service.class";
 
 process.on("SIGINT", function () {
@@ -18,7 +18,11 @@ async function main() {
   const envs = getEnvs();
 
   // singletonにする
-  const provider = new ethers.providers.JsonRpcProvider(envs.RPC_HOST);
+  const provider = new WebSocketProvider(envs.RPC_HOST);
+  // const provider = new ethers.providers.JsonRpcProvider(envs.RPC_HOST);
+
+
+
   const signer = ethers.Wallet.fromMnemonic(envs.MNEMONIC).connect(provider);
   const dog = new Dog({
     dogAddress: envs.DOG_ADDRESS,
