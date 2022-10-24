@@ -1,12 +1,22 @@
 import { ContractTransaction, ethers } from "ethers";
+import { SimpleChannel } from "./channel";
+
+interface EventJob {
+  transactionHash: string;
+  processFunction: () => Promise<void>;
+}
 
 /**
  * Base class for all services
  */
 export default abstract class BaseService {
+  // よくわからん。。SimpleChannelは本当に必要？
   processedTxHashes: Set<string> = new Set();
+  private channel: SimpleChannel<EventJob> = new SimpleChannel<EventJob>();
 
-  constructor(protected readonly signer: ethers.Wallet) {}
+  constructor(protected readonly signer: ethers.Wallet) {
+    this.handleJobs(this.channel);
+  }
 
   /**
    * Start service
@@ -19,11 +29,22 @@ export default abstract class BaseService {
     event: { transactionHash: string },
     processFunction: () => Promise<void>
   ): Promise<void> {
-    if (this.processedTxHashes.has(event.transactionHash)) {
-      return;
-    } else {
-      this.processedTxHashes.add(event.transactionHash);
-      await processFunction();
+    this.channel.send({
+      transactionHash: event.transactionHash,
+      processFunction,
+    });
+  }
+
+  private async handleJobs(chan: SimpleChannel<EventJob>) {
+    for await (const { transactionHash, processFunction } of chan) {
+      if (this.processedTxHashes.has(transactionHash)) {
+        console.log(`${transactionHash} already processed`);
+        return;
+      } else {
+        console.log(`Processing ${transactionHash}`);
+        await processFunction();
+        this.processedTxHashes.add(transactionHash);
+      }
     }
   }
 
@@ -34,7 +55,7 @@ export default abstract class BaseService {
   ): Promise<ContractTransaction | undefined> {
     const result = await txEvent.catch((e) => {
       if ("error" in e) {
-        console.log(`Transaction failed with error ${e.error.reason}`);
+        console.log(e.error);
       } else {
         console.log(e.message);
       }

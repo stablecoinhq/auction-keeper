@@ -14,9 +14,7 @@ const sump = BigNumber.from(
 );
 
 async function startAuctions() {
-  /**
-   * DeployTokens
-   */
+  // Deploy auction
   const [owner, addr1] = await ethers.getSigners();
   const MockDSToken = await ethers.getContractFactory("MockDSToken");
   const MockVat = await ethers.getContractFactory("MockVat");
@@ -161,7 +159,7 @@ describe("Surplus auction", function () {
         .connect(addr1)
         .tend(
           1,
-          BigNumber.from("30000000000000000000000000000000000000000000000000"),
+          surplusAuctionAmount,
           10
         );
       await sleep(5000);
@@ -169,11 +167,12 @@ describe("Surplus auction", function () {
       expect(auctionInfo.guy).eq(signer.address);
       await auction.stop();
     });
+    // TODO: stop bidding on certain condition
+    // TODO: end auction
   });
   describe("Debt auction", function () {
     it("Should bid on debt auction", async () => {
       const { flopper } = await loadFixture(startAuctions);
-      const [, addr1] = await ethers.getSigners();
       const auction = new Auction({
         auctionType: "debt",
         auctionAddress: flopper.address,
@@ -204,5 +203,7 @@ describe("Surplus auction", function () {
       expect(auctionInfo.guy).eq(signer.address);
       await auction.stop();
     });
+    // TODO: stop bidding on certain condition
+    // TODO: end auction
   });
 });

@@ -15,7 +15,7 @@ import BaseService from "../common/base-service.class";
 /**
  * Auction info
  */
-interface AuctionInfo {
+export interface AuctionInfo {
   /**
    * Auction id
    */
@@ -53,7 +53,7 @@ interface AuctionInfo {
 /**
  * Auction type
  */
-enum AuctionType {
+export enum AuctionType {
   /**
    * Flopper/Debt auction
    */
@@ -65,7 +65,7 @@ enum AuctionType {
 }
 
 export interface AuctionConfig {
-  auctionType: AuctionType;
+  auctionType: "debt" | "surplus";
   auctionAddress: string;
   signer: ethers.Wallet;
 }
@@ -86,11 +86,12 @@ export class Auction extends BaseService {
   constructor(config: AuctionConfig) {
     const { auctionType, auctionAddress, signer } = config;
     super(signer);
+    this.auctionType =
+      auctionType === "debt" ? AuctionType.Debt : AuctionType.Surplus;
     this.contract =
-      auctionType === AuctionType.Debt
+      this.auctionType === AuctionType.Debt
         ? Flopper__factory.connect(auctionAddress, this.signer)
         : Flapper__factory.connect(auctionAddress, this.signer);
-    this.auctionType = auctionType;
     this.DS_Token = this.contract
       .gem()
       .then((v) => DS_Token__factory.connect(v, this.signer));
@@ -109,6 +110,10 @@ export class Auction extends BaseService {
     await this._bid(auction.id);
     this._handleKickEvents();
     this._handleLogEvents();
+  }
+
+  async stop() {
+    this.contract.removeAllListeners();
   }
 
   /**
@@ -150,7 +155,7 @@ export class Auction extends BaseService {
           transactionHash: string;
           topics: string[];
         };
-        this._processEvent(eventTx, async () => {
+        await this._processEvent(eventTx, async () => {
           const auctionId = BigNumber.from(eventTx.topics.at(2));
           console.log(`Event occured on auction ${auctionId.toString()}`);
           switch (event) {
@@ -161,17 +166,17 @@ export class Auction extends BaseService {
             // Someone bidded on Flopper/Debt auction
             case FunctionSig.dent:
               console.log(`Someone bidded on auction ${auctionId.toString()}`);
-              this._bid(auctionId);
+              await this._bid(auctionId);
               break;
             // Someone bidded on Flapper/Surplus auction
             case FunctionSig.tend:
               console.log(`Someone bidded on auction ${auctionId.toString()}`);
-              this._bid(auctionId);
+              await this._bid(auctionId);
               break;
             // Auction restarted
             case FunctionSig.tick:
               console.log(`Auction ${auctionId.toString()} restarted`);
-              this._bid(auctionId);
+              await this._bid(auctionId);
               break;
             default:
               break;
@@ -225,7 +230,7 @@ export class Auction extends BaseService {
         break;
       }
       auctionInfos.push(auctionInfo);
-      i.sub(1);
+      i = i.sub(1);
     }
     return auctionInfos;
   }
