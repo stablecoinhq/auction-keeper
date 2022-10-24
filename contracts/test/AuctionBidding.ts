@@ -173,15 +173,36 @@ describe("Surplus auction", function () {
   describe("Debt auction", function () {
     it("Should bid on debt auction", async () => {
       const { flopper } = await loadFixture(startAuctions);
+      const [, addr1] = await ethers.getSigners();
       const auction = new Auction({
         auctionType: "debt",
         auctionAddress: flopper.address,
         signer,
       });
       auction.start();
-      await sleep(3000);
+      await sleep(1000);
       const auctionInfo = await auction.getAuctionInfoById(BigNumber.from(1));
       expect(auctionInfo.guy).eq(signer.address);
+      await auction.stop();
+    });
+    it("Should out bid on debt auctions", async () => {
+      const { flopper } = await loadFixture(startAuctions);
+      const [, addr1] = await ethers.getSigners();
+      const auction = new Auction({
+        auctionType: "debt",
+        auctionAddress: flopper.address,
+        signer,
+      });
+      auction.start();
+      await sleep(1000);
+      // Someone else bidded
+      await flopper
+        .connect(addr1)
+        .dent(1, BigNumber.from("200000000000000000000"), sump);
+      await sleep(5000);
+      const auctionInfo = await auction.getAuctionInfoById(BigNumber.from(1));
+      expect(auctionInfo.guy).eq(signer.address);
+      await auction.stop();
     });
   });
 });
