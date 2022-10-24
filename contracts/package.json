@@ -6,7 +6,7 @@
   "scripts": {
     "test": "npx hardhat test",
     "compile": "npx hardhat compile",
-    "deploy-vat": "npx hardhat run --network localhost scripts/deploy-vat.ts"
+    "deploy-auctions": "npx hardhat run --network localhost scripts/deploy-auctions.ts"
   },
   "repository": {
     "type": "git",
