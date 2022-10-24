@@ -2,6 +2,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export { Clip__factory } from "./Clip__factory";
+export { DS_Token__factory } from "./DS_Token__factory";
 export { Dog__factory } from "./Dog__factory";
 export { Flapper__factory } from "./Flapper__factory";
 export { Flopper__factory } from "./Flopper__factory";
