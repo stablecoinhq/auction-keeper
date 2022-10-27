@@ -7,6 +7,7 @@
     "test": "jest",
     "build": "tsc --build",
     "start": "node app/dist/src/index.js",
+    "start-test": "ENV_PATH=.env.test npx ts-node app/src/index.ts",
     "test-vow": "ENV_PATH=.env.test npx ts-node app/src/vow-test.ts"
   },
   "keywords": [],

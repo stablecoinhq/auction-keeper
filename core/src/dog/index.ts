@@ -425,7 +425,7 @@ export class Dog extends BaseService {
     functionSig: string
   ): Promise<string[]> {
     console.log(
-      `Fetching events from block ${from.toLocaleString()} to ${to.toLocaleString()}`
+      `Fetching events from block ${from.toLocaleString()} to ${to.toLocaleString()} of sig ${functionSig}`
     );
     const vat = await this.vatContract;
     const eventFilter =
