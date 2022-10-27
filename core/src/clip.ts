@@ -70,10 +70,10 @@ function displayAuctionInfo(auctionInfo: AuctionInfo): void {
   const normalised = {
     auctionId: auctionId.toString(),
     vault: usr,
-    daiToRaise: displayUnits(tab, unitContants.RAD),
-    amountBeingAuctioned: displayUnits(lot, unitContants.WAD),
-    startingPrice: displayUnits(top, unitContants.RAY),
-    currentPrice: displayUnits(price, unitContants.RAY),
+    daiToRaise: tab.toString(),
+    amountBeingAuctioned: lot.toString(),
+    startingPrice: top.toString(),
+    currentPrice: price.toString(),
     startedAt: tic.eq(0) ? 0 : new Date(tic.toNumber() * 10 ** 3),
     ended: lot.eq(0) || needsRedo,
   };
@@ -110,11 +110,18 @@ export class Clip extends BaseService {
       console.log(`No auctions available for ${ilk}`);
     } else {
       const activeAuctionIds = await this.clip.list();
-      await Promise.all(
-        activeAuctionIds.map(async (auctionId) => {
-          this._paricipateAuction(auctionId);
-        })
-      );
+      if (activeAuctionIds) {
+        const availableDai = await this.vat.dai(this.signer.address);
+        activeAuctionIds.reduce(async (prev, curr) => {
+          const currenDai = await prev;
+          if (currenDai.eq(0)) {
+            return currenDai;
+          } else {
+            const rest = await this._paricipateAuction(curr, currenDai);
+            return rest;
+          }
+        }, Promise.resolve(availableDai));
+      }
     }
     const kickEventFilter =
       this.clip.filters[
@@ -122,9 +129,10 @@ export class Clip extends BaseService {
       ]();
     this.clip.on(kickEventFilter, async (...args) => {
       const [auctionId, , , , , , , eventTx] = args;
+      const availableDai = await this.vat.dai(this.signer.address);
       this._processEvent(eventTx, async () => {
         console.log(`Auction id: ${auctionId.toString()} started.`);
-        this._paricipateAuction(auctionId);
+        this._paricipateAuction(auctionId, availableDai);
       });
     });
     const takeEventFilter =
@@ -135,17 +143,15 @@ export class Clip extends BaseService {
       const [id, , , , , , , eventTx] = args;
       this._processEvent(eventTx, async () => {
         const gem = await this.vat.gem(this.ilk, this.signer.address);
-        console.log(
-          `Auction id ${id.toString()} success! Got token ${displayUnits(
-            gem,
-            unitContants.WAD
-          )}`
-        );
+        console.log(`Auction id ${id.toString()}, gem purchased: ${gem}`);
       });
     });
   }
 
-  private async _paricipateAuction(auctionId: BigNumber) {
+  private async _paricipateAuction(
+    auctionId: BigNumber,
+    availableDai: BigNumber
+  ) {
     const { tic, top, tab, lot, usr } = await this.clip.sales(auctionId);
     const { needsRedo, price } = await this.clip.getStatus(auctionId);
     const ended = lot.eq(0) || needsRedo;
@@ -160,40 +166,44 @@ export class Clip extends BaseService {
       ended,
     };
     displayAuctionInfo(auctionInfo);
-    this._take(auctionInfo);
-    return auctionInfo;
+    const remaining = await this._take(auctionInfo, availableDai);
+    return remaining;
   }
 
   // 入札する
-  private async _take(auctionInfo: AuctionInfo) {
+  private async _take(
+    auctionInfo: AuctionInfo,
+    availableDai: BigNumber
+  ): Promise<BigNumber> {
     const { auctionId, lot, auctionPrice, ended } = auctionInfo;
     if (ended) {
       console.log(`Auction ${auctionId} is finished`);
-      return;
+      return availableDai;
     }
-    const availableDai = await this.vat.dai(this.signer.address);
     const amountWeCanAfford = availableDai.div(auctionPrice);
     if (availableDai.lte(0) || amountWeCanAfford.lte(0)) {
       console.log(
-        `We have no available dai to participate in auction: ${displayUnits(
-          availableDai,
-          unitContants.RAD
-        )}`
+        `Address ${this.signer.address} have no available dai to participate in auction: ${availableDai}`
       );
-      return;
+      return availableDai;
     }
     const amountToPurchase = amountWeCanAfford.lt(lot)
       ? amountWeCanAfford
       : lot;
-    const result = await this.clip.take(
-      auctionId,
-      amountToPurchase,
-      auctionPrice,
-      this.signer.address,
-      []
+    const result = await this._submitTx(
+      this.clip.take(
+        auctionId,
+        amountToPurchase,
+        auctionPrice,
+        this.signer.address,
+        []
+      )
     );
-    console.log(
-      `Bidding submitted ${result.hash}, ${amountToPurchase} at the price of ${auctionPrice}`
-    );
+    if (result) {
+      console.log(
+        `Bidding submitted ${result.hash}, purchasing ${amountToPurchase} at the price of ${auctionPrice}`
+      );
+    }
+    return availableDai.sub(amountToPurchase.mul(auctionPrice));
   }
 }

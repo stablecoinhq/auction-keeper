@@ -1,7 +1,8 @@
-import { ethers, BigNumber } from "ethers";
+import { ethers } from "ethers";
 
 import { getEnvs } from "./config";
 import { Dog, Clip, Vow, Auction } from "@auction-keeper/core";
+import BaseService from "@auction-keeper/core/src/common/base-service.class";
 
 process.on("SIGINT", function () {
   console.log("\nGracefully shutting down from SIGINT (Ctrl-C)");
@@ -40,60 +41,41 @@ async function main() {
     signer,
   });
 
-  if (envs.RUN_CLIP === true) {
-    const clipAddresses = await dog.getClipAddresses(envs.ILKS);
+  const clipAddresses = await dog.getClipAddresses(envs.ILKS);
 
-    console.log({
-      RPC_HOST: envs.RPC_HOST,
-      DOG_ADDRESS: envs.DOG_ADDRESS,
-      VOW_ADDRESS: envs.VOW_ADDRESS,
-      SIGNER_ADDRESS: signer.address,
-      VAT_ADDRESS: vatAddress,
-      CLIP_ADDRESSES: clipAddresses,
+  console.log({
+    RPC_HOST: envs.RPC_HOST,
+    DOG_ADDRESS: envs.DOG_ADDRESS,
+    VOW_ADDRESS: envs.VOW_ADDRESS,
+    SIGNER_ADDRESS: signer.address,
+    VAT_ADDRESS: vatAddress,
+    CLIP_ADDRESSES: clipAddresses,
+  });
+
+  const clips = clipAddresses.map(({ ilk, address }) => {
+    return new Clip({
+      clipAddress: address,
+      vatAddress: vatAddress,
+      ilk: ilk,
+      signer: signer,
     });
+  });
 
-    const clips = clipAddresses.map(({ ilk, address }) => {
-      return new Clip({
-        clipAddress: address,
-        vatAddress: vatAddress,
-        ilk: ilk,
-        signer: signer,
-      });
-    });
+  // これは事前にやっておく必要がある
+  await Promise.all(
+    clips.map(async (clip) => {
+      clip.hope();
+    })
+  );
 
-    // これは事前にやっておく必要がある
-    await Promise.all(
-      clips.map(async (clip) => {
-        clip.hope();
-      })
-    );
-
-    Promise.all(
-      [...clips, dog, vow].map((v) => {
-        if (v instanceof Clip) {
-          v.start();
-        } else if (v instanceof Dog) {
-          v.start();
-        } else if (v instanceof Vow) {
-          v.start();
-        }
-      })
-    );
-  } else {
-    console.log({
-      RPC_HOST: envs.RPC_HOST,
-      DOG_ADDRESS: envs.DOG_ADDRESS,
-      VOW_ADDRESS: envs.VOW_ADDRESS,
-      SIGNER_ADDRESS: signer.address,
-      VAT_ADDRESS: vatAddress,
-    });
-    dog.start();
-    vow.start();
-    surplusAuction.start();
-  }
+  Promise.all(
+    [...clips, dog, vow, surplusAuction].map((v) => {
+      const service = v as unknown as BaseService;
+      service.start();
+    })
+  );
 }
 
 main().catch((e) => {
   console.error(e);
-  process.exit(1);
 });
