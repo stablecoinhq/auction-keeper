@@ -107,7 +107,9 @@ export class Auction extends BaseService {
     await this._checkAllowanceAndApprove();
     // TODO: participate in multiple auctions
     const [auction] = await this.getAuctionInfos();
-    await this._bid(auction.id);
+    if (auction) {
+      await this._bid(auction.id);
+    }
     this._handleKickEvents();
     this._handleLogEvents();
   }

@@ -1,9 +1,7 @@
 import { ethers, BigNumber } from "ethers";
 
-import { Dog } from "@auction-keeper/core";
-import { Clip } from "@auction-keeper/core";
 import { getEnvs } from "./config";
-import { Vow } from "@auction-keeper/core";
+import { Dog, Clip, Vow, Auction } from "@auction-keeper/core";
 
 process.on("SIGINT", function () {
   console.log("\nGracefully shutting down from SIGINT (Ctrl-C)");
@@ -32,6 +30,13 @@ async function main() {
   const vow = new Vow({
     vowAddress: envs.VOW_ADDRESS,
     vatAddress: vatAddress,
+    signer,
+  });
+
+  const flapperAddress = await vow.flapperAddress();
+  const surplusAuction = new Auction({
+    auctionType: "surplus",
+    auctionAddress: flapperAddress,
     signer,
   });
 
@@ -84,6 +89,7 @@ async function main() {
     });
     dog.start();
     vow.start();
+    surplusAuction.start();
   }
 }
 

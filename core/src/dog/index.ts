@@ -52,6 +52,7 @@ function displayUrnInfo(
   const normalized = {
     ilk: ilk,
     address: urnAddress,
+    spot: displayUnits(spot, unitContants.RAY),
     ink: displayUnits(ink, unitContants.WAD),
     art: displayUnits(art, unitContants.WAD),
     debt: displayUnits(debt, unitContants.WAD.mul(unitContants.RAY)),
@@ -451,14 +452,15 @@ export class Dog extends BaseService {
     const { spot, rate, dust } = vatIlkInfo;
     const { hole, dirt, chop } = dogIlk;
     // Do we have room to start auction?
-    const room = Hole.sub(Dirt).lte(hole.sub(dirt))
-      ? Hole.sub(Dirt)
-      : hole.sub(dirt);
+    const room = min(Hole.sub(Dirt), hole.sub(dirt));
     // Normalize room
     const normalizedRoom = room.mul(unitContants.WAD).div(rate).div(chop);
-    const dart = art.lte(normalizedRoom) ? art : normalizedRoom;
+    const dart = min(art, normalizedRoom);
     // Vault is dusty
-    const isDust = dart.mul(rate).lt(dust);
+    const isDust =
+      !art.gt(dart) &&
+      !rate.mul(art.sub(dart)).lt(dust) &&
+      !dart.mul(rate).gte(dust);
     // Check that
     // - Spot(Maximum number of DAI per currency that can be issued) is non-zero
     // - Ink (quantity of currency collateralized) * Spot is less than debt (art * rate).
@@ -469,10 +471,14 @@ export class Dog extends BaseService {
     // dink is less than zero
     const isDinkBelowZero = dink.lte(0);
     const isDinkUnsafe = dink.gt(constants.MaxUint256);
-    if (isDartUnsafe || isDinkUnsafe || isDinkBelowZero || isDust) {
-      return false;
-    } else {
-      return isUnsafeVault;
-    }
+    const canBark =
+      isDartUnsafe || isDinkUnsafe || isDinkBelowZero || isDust
+        ? false
+        : isUnsafeVault;
+    return canBark;
   }
+}
+
+function min(a: BigNumber, b: BigNumber) {
+  return a.lte(b) ? a : b;
 }
