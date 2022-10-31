@@ -453,12 +453,13 @@ export class Dog extends BaseService {
     const { hole, dirt, chop } = dogIlk;
     // Do we have room to start auction?
     const room = min(Hole.sub(Dirt), hole.sub(dirt));
+    const liquidationLimitHit = Hole.lte(Dirt) || hole.lte(dirt);
     // Normalize room
     const normalizedRoom = room.mul(unitContants.WAD).div(rate).div(chop);
     const dart = min(art, normalizedRoom);
     // Vault is dusty
     const isDust =
-      !art.gt(dart) &&
+      art.gt(dart) &&
       !rate.mul(art.sub(dart)).lt(dust) &&
       !dart.mul(rate).gte(dust);
     // Check that
@@ -472,7 +473,11 @@ export class Dog extends BaseService {
     const isDinkBelowZero = dink.lte(0);
     const isDinkUnsafe = dink.gt(constants.MaxUint256);
     const canBark =
-      isDartUnsafe || isDinkUnsafe || isDinkBelowZero || isDust
+      liquidationLimitHit ||
+      isDartUnsafe ||
+      isDinkUnsafe ||
+      isDinkBelowZero ||
+      isDust
         ? false
         : isUnsafeVault;
     return canBark;

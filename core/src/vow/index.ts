@@ -310,19 +310,33 @@ export class Vow extends BaseService {
    * @returns State of vow contract
    */
   private async _getVowState(): Promise<VowState> {
-    // dai
+    /**
+     * dai
+     */
     const availableDai = await this.vat.dai(this.vow.address);
-    // sin
+    /**
+     * sin
+     */
     const unbackedDai = await this.vat.sin(this.vow.address);
-    // Sin
+    /**
+     * Sin
+     */
     const queuedDebt = await this.vow.Sin();
-    // Ash
+    /**
+     * Ash
+     */
     const onAuctionDebt = await this.vow.Ash();
-    // bump
+    /**
+     * bump
+     */
     const fixedSurplusAuctionSize = await this.vow.bump();
-    // sump
+    /**
+     * sump
+     */
     const fixedDebtAuctionSize = await this.vow.sump();
-    // hump
+    /**
+     * hump
+     */
     const auctionSizeBuffer = await this.vow.hump();
     return {
       availableDai,
