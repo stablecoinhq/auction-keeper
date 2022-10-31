@@ -11,6 +11,7 @@ interface EventJob {
  */
 export default abstract class BaseService {
   // よくわからん。。SimpleChannelは本当に必要？
+  // Channelややこしいからlockにした方がいいかも。
   processedTxHashes: Set<string> = new Set();
   private channel: SimpleChannel<EventJob> = new SimpleChannel<EventJob>();
 
@@ -61,9 +62,6 @@ export default abstract class BaseService {
       }
       return undefined;
     });
-    if (result) {
-      console.log(`Transaction submitted ${result.hash}`);
-    }
     return result;
   }
 }

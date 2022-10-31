@@ -11,6 +11,7 @@ import { parseEventsAndGroup, parseEventAndGroup } from "./event-parser";
 import { VaultCollection } from "./vault-collection";
 import { FunctionSigs, VOID_ADDRESS, SPOT } from "./constants";
 import BaseService from "../common/base-service.class";
+import { Wallet } from "../common/wallet";
 
 interface VatIlkInfo {
   Art: BigNumber;
@@ -114,7 +115,7 @@ export interface DogConfig {
   /**
    * Signer
    */
-  signer: ethers.Wallet;
+  signer: Wallet;
   /**
    * Block to start from
    */

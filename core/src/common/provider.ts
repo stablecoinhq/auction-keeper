@@ -1,5 +1,4 @@
 import { ethers } from "ethers";
-
 // https://github.com/ethers-io/ethers.js/issues/1053#issuecomment-1220391512
 
 const WEBSOCKET_PING_INTERVAL = 10000;

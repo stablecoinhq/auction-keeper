@@ -8,4 +8,5 @@ export {
   AuctionType,
 } from "./flapper-flopper";
 export { WebSocketProvider } from "./common/provider";
+export { Wallet } from "./common/wallet";
 export * from "./types/ether-contracts";

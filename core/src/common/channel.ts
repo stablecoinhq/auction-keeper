@@ -1,3 +1,5 @@
+// https://github.com/arjsin/channels
+
 export enum State {
   empty = "empty",
   receiver = "receiver",

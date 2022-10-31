@@ -1,7 +1,7 @@
 import { ethers } from "ethers";
 
 import { getEnvs } from "./config";
-import { Dog, Clip, Vow, Auction, WebSocketProvider } from "@auction-keeper/core";
+import { Dog, Clip, Vow, Auction, WebSocketProvider, Wallet } from "@auction-keeper/core";
 import BaseService from "@auction-keeper/core/src/common/base-service.class";
 
 process.on("SIGINT", function () {
@@ -23,7 +23,7 @@ async function main() {
 
 
 
-  const signer = ethers.Wallet.fromMnemonic(envs.MNEMONIC).connect(provider);
+  const signer = Wallet.fromMnemonic(envs.MNEMONIC).connect(provider);
   const dog = new Dog({
     dogAddress: envs.DOG_ADDRESS,
     signer: signer,
@@ -73,7 +73,7 @@ async function main() {
   );
 
   Promise.all(
-    [...clips, dog, vow, surplusAuction].map((v) => {
+    [dog, vow, surplusAuction].map((v) => {
       const service = v as unknown as BaseService;
       service.start();
     })
