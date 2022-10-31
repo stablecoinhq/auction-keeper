@@ -5,8 +5,6 @@ import { AsyncLock } from "./util";
  * Base class for all services
  */
 export default abstract class BaseService {
-  // よくわからん。。SimpleChannelは本当に必要？
-  // Channelややこしいからlockにした方がいいかも。
   processedTxHashes: Set<string> = new Set();
   private lock = new AsyncLock();
 
