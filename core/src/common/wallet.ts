@@ -11,7 +11,7 @@ import { defaultPath, HDNode } from "@ethersproject/hdnode";
 import { AsyncLock } from "./util";
 
 /**
- * Customized Wallet class
+ * Customized wallet class
  * https://docs.ethers.io/ethers.js/v3.0/html/api-contract.html#custom-signer
  */
 export class Wallet extends EtherWallet {
@@ -34,12 +34,7 @@ export class Wallet extends EtherWallet {
   override async sendTransaction(
     transaction: Deferrable<TransactionRequest>
   ): Promise<TransactionResponse> {
-    await this.lock.promise;
-    this.lock.enable();
-    const result = await super.sendTransaction(transaction);
-    console.log(`Transaction submitted ${result.hash}`);
-    this.lock.disable();
-    return result;
+    return this.lock.run(async () => super.sendTransaction(transaction));
   }
 
   override connect(provider: Provider): Wallet {
@@ -54,7 +49,6 @@ export class Wallet extends EtherWallet {
     if (!path) {
       path = defaultPath;
     }
-    console.log(`Instantiating new wallet`);
     return new Wallet(
       HDNode.fromMnemonic(mnemonic, undefined, wordlist).derivePath(path)
     );

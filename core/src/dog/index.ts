@@ -239,6 +239,7 @@ export class Dog extends BaseService {
         : this.toBlock;
     const bunch = splitBlocks(this.fromBlock, latestBlock);
 
+    console.log("Fetching vault data from past events");
     const vaultCollections = await Promise.all(
       bunch.map(async ({ from, to }) => {
         return [FunctionSigs.fork, FunctionSigs.frob].reduce(
@@ -380,7 +381,7 @@ export class Dog extends BaseService {
     const Dirt = await this.Dirt;
     const vatIlkInfo = await vat.ilks(ilk);
     const dogIlk = await this.dog.ilks(ilk);
-    const { clip, hole } = dogIlk;
+    const { clip, hole, dirt } = dogIlk;
     // Clipがないなら何もしない
     // holeが0なら何もしない
     if (clip === VOID_ADDRESS || hole.eq(BigNumber.from(0))) {
@@ -394,22 +395,37 @@ export class Dog extends BaseService {
       return [];
     }
 
-    const barks = await Promise.all(
-      urnAddresses.map(async (urnAddress) => {
-        const urnInfo = await vat.urns(ilk, urnAddress);
-        displayUrnInfo(ilk, urnAddress, vatIlkInfo, urnInfo);
-        return {
-          address: urnAddress,
-          canBark: Dog.canBark(Hole, Dirt, urnInfo, vatIlkInfo, dogIlk),
-        };
-      })
-    );
+    const base = {
+      Dirt,
+      dirt,
+      urns: [] as string[],
+    };
 
-    return barks
-      .filter((v) => v.canBark)
-      .map((v) => {
-        return { ilk: ilk, address: v.address };
-      });
+    const barks = await urnAddresses.reduce(async (prev, urnAddress) => {
+      const acc = await prev;
+      const urnInfo = await vat.urns(ilk, urnAddress);
+      displayUrnInfo(ilk, urnAddress, vatIlkInfo, urnInfo);
+      const { canBark, tab } = Dog.canBark(
+        Hole,
+        acc.Dirt,
+        acc.dirt,
+        urnInfo,
+        vatIlkInfo,
+        dogIlk
+      );
+      const accDirt = acc.Dirt.add(tab);
+      const accdirt = acc.dirt.add(tab);
+      const ls = canBark ? [...acc.urns, urnAddress] : acc.urns;
+      return {
+        Dirt: accDirt,
+        dirt: accdirt,
+        urns: ls,
+      };
+    }, Promise.resolve(base));
+
+    return barks.urns.map((address) => {
+      return { ilk: ilk, address: address };
+    });
   }
 
   // Retrieve events in the specified block range.
@@ -425,9 +441,6 @@ export class Dog extends BaseService {
     to: number | "latest",
     functionSig: string
   ): Promise<string[]> {
-    console.log(
-      `Fetching events from block ${from.toLocaleString()} to ${to.toLocaleString()} of sig ${functionSig}`
-    );
     const vat = await this.vatContract;
     const eventFilter =
       vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](functionSig);
@@ -445,13 +458,17 @@ export class Dog extends BaseService {
   static canBark(
     Hole: BigNumber,
     Dirt: BigNumber,
+    dirt: BigNumber,
     urnInfo: UrnInfo,
     vatIlkInfo: VatIlkInfo,
     dogIlk: DogIlkInfo
-  ): boolean {
+  ): {
+    canBark: boolean;
+    tab: BigNumber;
+  } {
     const { ink, art } = urnInfo;
     const { spot, rate, dust } = vatIlkInfo;
-    const { hole, dirt, chop } = dogIlk;
+    const { hole, chop } = dogIlk;
     // Do we have room to start auction?
     const room = min(Hole.sub(Dirt), hole.sub(dirt));
     const liquidationLimitHit = Hole.lte(Dirt) || hole.lte(dirt);
@@ -481,7 +498,14 @@ export class Dog extends BaseService {
       isDust
         ? false
         : isUnsafeVault;
-    return canBark;
+
+    const tab = canBark
+      ? dart.mul(rate).mul(chop).div(unitContants.WAD)
+      : BigNumber.from(0);
+    return {
+      canBark,
+      tab,
+    };
   }
 }
 

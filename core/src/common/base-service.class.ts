@@ -1,23 +1,14 @@
 import { ContractTransaction, ethers } from "ethers";
-import { SimpleChannel } from "./channel";
-
-interface EventJob {
-  transactionHash: string;
-  processFunction: () => Promise<void>;
-}
+import { AsyncLock } from "./util";
 
 /**
  * Base class for all services
  */
 export default abstract class BaseService {
-  // よくわからん。。SimpleChannelは本当に必要？
-  // Channelややこしいからlockにした方がいいかも。
   processedTxHashes: Set<string> = new Set();
-  private channel: SimpleChannel<EventJob> = new SimpleChannel<EventJob>();
+  private lock = new AsyncLock();
 
-  constructor(protected readonly signer: ethers.Wallet) {
-    this.handleJobs(this.channel);
-  }
+  constructor(protected readonly signer: ethers.Wallet) {}
 
   /**
    * Start service
@@ -30,14 +21,8 @@ export default abstract class BaseService {
     event: { transactionHash: string },
     processFunction: () => Promise<void>
   ): Promise<void> {
-    this.channel.send({
-      transactionHash: event.transactionHash,
-      processFunction,
-    });
-  }
-
-  private async handleJobs(chan: SimpleChannel<EventJob>) {
-    for await (const { transactionHash, processFunction } of chan) {
+    const { transactionHash } = event;
+    this.lock.run(async () => {
       if (this.processedTxHashes.has(transactionHash)) {
         console.log(`${transactionHash} already processed`);
         return;
@@ -46,7 +31,7 @@ export default abstract class BaseService {
         await processFunction();
         this.processedTxHashes.add(transactionHash);
       }
-    }
+    });
   }
 
   // Handle exceptions when exception occurs
