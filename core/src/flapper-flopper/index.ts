@@ -9,6 +9,7 @@ import { DS_Token__factory, Vat__factory } from "../types/ether-contracts";
 import { AuctionContract } from "./auction-contract";
 import { EMPTY_ADDRESS, ONE, BEG, FunctionSig } from "./constants";
 import BaseService from "../common/base-service.class";
+import { Wallet } from "../common/wallet";
 
 // https://docs.makerdao.com/keepers/auction-keepers/auction-keeper-bot-setup-guide
 
@@ -67,7 +68,7 @@ export enum AuctionType {
 export interface AuctionConfig {
   auctionType: "debt" | "surplus";
   auctionAddress: string;
-  signer: ethers.Wallet;
+  signer: Wallet;
 }
 /**
  * Auction class. Main roles are

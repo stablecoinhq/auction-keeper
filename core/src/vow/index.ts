@@ -10,6 +10,7 @@ import {
 import { Events, BYTES_32 } from "./constants";
 import "../common/base-service.class";
 import BaseService from "../common/base-service.class";
+import { Wallet } from "../common/wallet";
 
 function toAddress(data: string): string {
   return `0x${data.slice(26)}`;
@@ -32,7 +33,7 @@ export function getArgumentFromRawData(data: string, n: number): string {
 export interface VowConfig {
   vowAddress: string; // Address of a vow contract
   vatAddress: string; // Address of a vat contract
-  signer: ethers.Wallet; // Signer
+  signer: Wallet; // Signer
 }
 
 /**

@@ -1,6 +1,6 @@
-import { ethers, BigNumber } from "ethers";
+import { ethers } from "ethers";
 import { getEnvs } from "./config";
-import { Vow } from "@auction-keeper/core";
+import { Vow, Wallet } from "@auction-keeper/core";
 
 process.on("SIGINT", function () {
   console.log("\nGracefully shutting down from SIGINT (Ctrl-C)");
@@ -18,7 +18,7 @@ async function main() {
   console.log(envs);
 
   const provider = new ethers.providers.JsonRpcProvider(envs.RPC_HOST);
-  const signer = ethers.Wallet.fromMnemonic(envs.MNEMONIC).connect(provider);
+  const signer = Wallet.fromMnemonic(envs.MNEMONIC).connect(provider);
 
   const vow = new Vow({
     vowAddress: envs.VOW_ADDRESS,

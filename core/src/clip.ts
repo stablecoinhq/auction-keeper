@@ -6,7 +6,8 @@ import {
   Vat__factory,
   Vat as VatContract,
 } from "./types/ether-contracts";
-import { displayUnits, constants as unitContants } from "./units";
+import { Wallet } from "./common/wallet";
+
 
 /**
  * Configuration for clip
@@ -15,7 +16,7 @@ export interface ClipConfig {
   clipAddress: string;
   vatAddress: string;
   ilk: string;
-  signer: ethers.Wallet;
+  signer: Wallet;
 }
 
 /**

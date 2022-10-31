@@ -1,6 +1,3 @@
-// Create custom signer
-// https://docs.ethers.io/ethers.js/v3.0/html/api-contract.html#custom-signer
-
 import {
   TransactionRequest,
   TransactionResponse,
@@ -11,25 +8,16 @@ import { SigningKey } from "@ethersproject/signing-key";
 import { Wallet as EtherWallet, BytesLike, Wordlist } from "ethers";
 import { Deferrable } from "ethers/lib/utils";
 import { defaultPath, HDNode } from "@ethersproject/hdnode";
+import { AsyncLock } from "./util";
 
-//https://medium.com/@chris_marois/asynchronous-locks-in-modern-javascript-8142c877baf
-class AsyncLock {
-  promise: Promise<void>;
-  disable: () => void;
-
-  constructor() {
-    this.disable = () => {};
-    this.promise = Promise.resolve();
-  }
-
-  enable() {
-    this.promise = new Promise((resolve) => (this.disable = resolve));
-  }
-}
-
+/**
+ * Customized Wallet class
+ * https://docs.ethers.io/ethers.js/v3.0/html/api-contract.html#custom-signer
+ */
 export class Wallet extends EtherWallet {
   private static instance: Wallet;
   private lock: AsyncLock = new AsyncLock();
+  // Singleton constructor
   constructor(
     privateKey: BytesLike | ExternallyOwnedAccount | SigningKey,
     provider?: Provider
@@ -42,6 +30,7 @@ export class Wallet extends EtherWallet {
     }
   }
 
+  // Use lock to make sure nonce does not overlap
   override async sendTransaction(
     transaction: Deferrable<TransactionRequest>
   ): Promise<TransactionResponse> {
@@ -52,7 +41,7 @@ export class Wallet extends EtherWallet {
     this.lock.disable();
     return result;
   }
-  
+
   override connect(provider: Provider): Wallet {
     return new Wallet(this, provider);
   }
