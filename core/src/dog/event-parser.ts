@@ -1,5 +1,5 @@
 import { BYTES_LENGTH, FUNCTION_SIGNATURES } from "./constants";
-import { Vault, VaultCollection } from "./vault-collection";
+import { VaultCollection } from "./vault-collection";
 
 /* Library for parsing events related to Urn operations in Vat.sol.
  */

@@ -382,14 +382,13 @@ export class Dog extends BaseService {
     const vatIlkInfo = await vat.ilks(ilk);
     const dogIlk = await this.dog.ilks(ilk);
     const { clip, hole, dirt } = dogIlk;
-    // Clipがないなら何もしない
-    // holeが0なら何もしない
+    // Do nothing when clip is void address or when hole is 0
     if (clip === VOID_ADDRESS || hole.eq(BigNumber.from(0))) {
       return [];
     }
 
     const isLiquidationLimitSafe = Hole.gt(Dirt) && dogIlk.hole.gt(dogIlk.dirt);
-    // オークションがDAI上限に達している
+    // Auction has exceeded it's limit
     if (!isLiquidationLimitSafe) {
       console.log(`Auction has reached it's capacity for ${ilk}`);
       return [];

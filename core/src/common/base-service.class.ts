@@ -24,7 +24,7 @@ export default abstract class BaseService {
     const { transactionHash } = event;
     this.lock.run(async () => {
       if (this.processedTxHashes.has(transactionHash)) {
-        console.log(`${transactionHash} already processed`);
+        console.log(`Event ${transactionHash} already processed`);
         return;
       } else {
         console.log(`Processing ${transactionHash}`);
