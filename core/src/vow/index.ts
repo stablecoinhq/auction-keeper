@@ -9,7 +9,7 @@ import {
 } from "../types/ether-contracts";
 import { Events, BYTES_32 } from "./constants";
 import "../common/base-service.class";
-import BaseService from "../common/base-service.class";
+import { BaseService } from "../common/base-service.class";
 import { Wallet } from "../common/wallet";
 
 function toAddress(data: string): string {
@@ -87,6 +87,7 @@ export class Vow extends BaseService {
     super(signer);
     this.vow = Vow__factory.connect(vowAddress, this.signer);
     this.vat = Vat__factory.connect(vatAddress, this.signer);
+    this.signer.addOnReconnect(async () => await this._checkVowState());
   }
 
   async start() {

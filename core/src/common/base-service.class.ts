@@ -5,7 +5,7 @@ import { Wallet } from "./wallet";
 /**
  * Base class for all services
  */
-export default abstract class BaseService {
+export abstract class BaseService {
   processedTxHashes: Set<string> = new Set();
   private lock = new AsyncLock();
 

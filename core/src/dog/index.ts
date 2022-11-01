@@ -10,7 +10,7 @@ import { ethers } from "ethers";
 import { parseEventsAndGroup, parseEventAndGroup } from "./event-parser";
 import { VaultCollection } from "./vault-collection";
 import { FunctionSigs, VOID_ADDRESS, SPOT } from "./constants";
-import BaseService from "../common/base-service.class";
+import { BaseService } from "../common/base-service.class";
 import { Wallet } from "../common/wallet";
 
 interface VatIlkInfo {
@@ -179,6 +179,7 @@ export class Dog extends BaseService {
       .then((v) => Vat__factory.connect(v, this.signer));
     this.Dirt = this.dog.Dirt();
     this.Hole = this.dog.Hole();
+    this.signer.addOnReconnect(async () => this._lookupFromPastEvents())
   }
 
   /**

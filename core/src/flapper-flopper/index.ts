@@ -8,7 +8,7 @@ import {
 import { DS_Token__factory, Vat__factory } from "../types/ether-contracts";
 import { AuctionContract } from "./auction-contract";
 import { EMPTY_ADDRESS, ONE, BEG, FunctionSig } from "./constants";
-import BaseService from "../common/base-service.class";
+import { BaseService } from "../common/base-service.class";
 import { Wallet } from "../common/wallet";
 
 // https://docs.makerdao.com/keepers/auction-keepers/auction-keeper-bot-setup-guide
@@ -99,6 +99,12 @@ export class Auction extends BaseService {
     this.vatContract = this.contract
       .vat()
       .then((v) => Vat__factory.connect(v, this.signer));
+    this.signer.addOnReconnect(async () => {
+      const [auction] = await this.getAuctionInfos();
+      if (auction) {
+        await this._bid(auction.id);
+      }
+    });
   }
 
   /**

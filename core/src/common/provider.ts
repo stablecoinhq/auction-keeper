@@ -13,11 +13,15 @@ export class WebSocketProvider extends WebSocketProviderClass() {
   private provider?: ethers.providers.WebSocketProvider;
   private events: ethers.providers.WebSocketProvider["_events"] = [];
   private requests: ethers.providers.WebSocketProvider["_requests"] = {};
+  onReconnect: (() => Promise<void>)[] = [];
+  private isReconnecting: boolean = false;
 
+  // https://ja.javascript.info/proxy
   private handler = {
     get(target: WebSocketProvider, prop: string, receiver: unknown) {
       const value =
-        target.provider && Reflect.get(target.provider, prop, receiver);
+        (target.provider && Reflect.get(target.provider, prop, receiver)) ??
+        Reflect.get(target, prop, receiver);
 
       return value instanceof Function ? value.bind(target.provider) : value;
     },
@@ -58,6 +62,12 @@ export class WebSocketProvider extends WebSocketProviderClass() {
         provider._startEvent(event);
       }
 
+      if (this.isReconnecting) {
+        Promise.all(this.onReconnect.map(async (job) => await job())).then(
+          () => (this.isReconnecting = false)
+        );
+      }
+
       for (const key in this.requests) {
         provider._requests[key] = this.requests[key];
         provider._websocket.send(this.requests[key].payload);
@@ -72,6 +82,7 @@ export class WebSocketProvider extends WebSocketProviderClass() {
     provider._websocket.on("close", (code: number) => {
       provider._wsReady = false;
       console.log(`Error occured while connecting ${code}`);
+      this.isReconnecting = true;
 
       if (pingInterval) clearInterval(pingInterval);
       if (pongTimeout) clearTimeout(pongTimeout);
@@ -84,8 +95,7 @@ export class WebSocketProvider extends WebSocketProviderClass() {
     });
 
     // Don't need to do anything, just let 'close' handle it
-    provider._websocket.on("error", (code: number) => {
-    });
+    provider._websocket.on("error", (code: number) => {});
 
     this.provider = provider;
   }

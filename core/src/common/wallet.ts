@@ -9,6 +9,7 @@ import { Wallet as EtherWallet, BytesLike, Wordlist } from "ethers";
 import { Deferrable } from "ethers/lib/utils";
 import { defaultPath, HDNode } from "@ethersproject/hdnode";
 import { AsyncLock } from "./util";
+import { WebSocketProvider } from "./provider";
 
 /**
  * Customized wallet class
@@ -35,6 +36,12 @@ export class Wallet extends EtherWallet {
     transaction: Deferrable<TransactionRequest>
   ): Promise<TransactionResponse> {
     return this.lock.run(async () => super.sendTransaction(transaction));
+  }
+
+  addOnReconnect(job: () => Promise<void>) {
+    if (this.provider instanceof WebSocketProvider) {
+      this.provider.onReconnect.push(job);
+    }
   }
 
   override connect(provider: Provider): Wallet {

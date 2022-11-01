@@ -1,5 +1,5 @@
 import { BigNumber, ethers } from "ethers";
-import BaseService from "./common/base-service.class";
+import { BaseService } from "./common/base-service.class";
 import {
   Clip as ClipContract,
   Clip__factory,
@@ -7,7 +7,6 @@ import {
   Vat as VatContract,
 } from "./types/ether-contracts";
 import { Wallet } from "./common/wallet";
-
 
 /**
  * Configuration for clip
@@ -93,6 +92,7 @@ export class Clip extends BaseService {
     this.ilk = ilk;
     this.clip = Clip__factory.connect(clipAddress, this.signer);
     this.vat = Vat__factory.connect(vatAddress, this.signer);
+    this.signer.addOnReconnect(async () => await this._participate());
   }
 
   async hope() {
@@ -105,25 +105,7 @@ export class Clip extends BaseService {
   }
 
   async start() {
-    const ilk = await this.clip.ilk();
-    const count = await this.clip.count();
-    if (count.eq(0)) {
-      console.log(`No auctions available for ${ilk}`);
-    } else {
-      const activeAuctionIds = await this.clip.list();
-      if (activeAuctionIds) {
-        const availableDai = await this.vat.dai(this.signer.address);
-        activeAuctionIds.reduce(async (prev, curr) => {
-          const currenDai = await prev;
-          if (currenDai.eq(0)) {
-            return currenDai;
-          } else {
-            const rest = await this._paricipateAuction(curr, currenDai);
-            return rest;
-          }
-        }, Promise.resolve(availableDai));
-      }
-    }
+    await this._participate();
     const kickEventFilter =
       this.clip.filters[
         "Kick(uint256,uint256,uint256,uint256,address,address,uint256)"
@@ -147,6 +129,28 @@ export class Clip extends BaseService {
         console.log(`Auction id ${id.toString()}, gem purchased: ${gem}`);
       });
     });
+  }
+
+  private async _participate() {
+    const ilk = await this.clip.ilk();
+    const count = await this.clip.count();
+    if (count.eq(0)) {
+      console.log(`No auctions available for ${ilk}`);
+    } else {
+      const activeAuctionIds = await this.clip.list();
+      if (activeAuctionIds) {
+        const availableDai = await this.vat.dai(this.signer.address);
+        activeAuctionIds.reduce(async (prev, curr) => {
+          const currenDai = await prev;
+          if (currenDai.eq(0)) {
+            return currenDai;
+          } else {
+            const rest = await this._paricipateAuction(curr, currenDai);
+            return rest;
+          }
+        }, Promise.resolve(availableDai));
+      }
+    }
   }
 
   private async _paricipateAuction(

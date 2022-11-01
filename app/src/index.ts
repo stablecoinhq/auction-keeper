@@ -1,8 +1,13 @@
-import { ethers } from "ethers";
-
 import { getEnvs } from "./config";
-import { Dog, Clip, Vow, Auction, WebSocketProvider, Wallet } from "@auction-keeper/core";
-import BaseService from "@auction-keeper/core/src/common/base-service.class";
+import {
+  Dog,
+  Clip,
+  Vow,
+  Auction,
+  WebSocketProvider,
+  Wallet,
+  BaseService,
+} from "@auction-keeper/core";
 
 process.on("SIGINT", function () {
   console.log("\nGracefully shutting down from SIGINT (Ctrl-C)");
@@ -20,8 +25,6 @@ async function main() {
   // singletonにする
   const provider = new WebSocketProvider(envs.RPC_HOST);
   // const provider = new ethers.providers.JsonRpcProvider(envs.RPC_HOST);
-
-
 
   const signer = Wallet.fromMnemonic(envs.MNEMONIC).connect(provider);
   const dog = new Dog({
