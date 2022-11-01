@@ -1,4 +1,4 @@
-import { ContractTransaction, ethers } from "ethers";
+import { ContractTransaction } from "ethers";
 import { AsyncLock } from "./util";
 import { Wallet } from "./wallet";
 import { WebSocketProvider } from "./provider";
@@ -14,7 +14,7 @@ export abstract class BaseService {
 
   /**
    * Register job to process when web socket is reconnected
-   * @param job Job to run when reconnect
+   * @param job Job to run when reconnected
    */
   addReconnect(job: () => Promise<void>) {
     if (this.signer.provider instanceof WebSocketProvider) {
@@ -26,6 +26,10 @@ export abstract class BaseService {
    * Start service
    */
   abstract start(): Promise<void>;
+
+  stop() {
+    this.signer.provider.removeAllListeners()
+  }
 
   /** Process events
    */

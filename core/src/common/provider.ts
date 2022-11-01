@@ -64,7 +64,7 @@ export class WebSocketProvider extends WebSocketProviderClass() {
 
       if (this.isReconnecting) {
         this.isReconnecting = false;
-        this.onReconnect.forEach(async (job) => await job());
+        this.onReconnect.forEach((job) => job());
       }
 
       for (const key in this.requests) {

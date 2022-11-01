@@ -91,7 +91,6 @@ export class Vow extends BaseService {
   }
 
   async start() {
-    await this._checkVowState();
     this._handleVowEvents();
     this._handleSurplusAuctionEvents();
     this._handleDebtAuctionEvents();
