@@ -38,12 +38,6 @@ export class Wallet extends EtherWallet {
     return this.lock.run(async () => super.sendTransaction(transaction));
   }
 
-  addOnReconnect(job: () => Promise<void>) {
-    if (this.provider instanceof WebSocketProvider) {
-      this.provider.onReconnect.push(job);
-    }
-  }
-
   override connect(provider: Provider): Wallet {
     return new Wallet(this, provider);
   }

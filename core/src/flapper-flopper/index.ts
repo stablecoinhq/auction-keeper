@@ -99,7 +99,7 @@ export class Auction extends BaseService {
     this.vatContract = this.contract
       .vat()
       .then((v) => Vat__factory.connect(v, this.signer));
-    this.signer.addOnReconnect(async () => {
+    this.addReconnect(async () => {
       const [auction] = await this.getAuctionInfos();
       if (auction) {
         await this._bid(auction.id);

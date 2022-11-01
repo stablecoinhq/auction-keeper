@@ -1,6 +1,7 @@
 import { ContractTransaction, ethers } from "ethers";
 import { AsyncLock } from "./util";
 import { Wallet } from "./wallet";
+import { WebSocketProvider } from "./provider";
 
 /**
  * Base class for all services
@@ -10,6 +11,16 @@ export abstract class BaseService {
   private lock = new AsyncLock();
 
   constructor(protected readonly signer: Wallet) {}
+
+  /**
+   * Register job to process when web socket is reconnected
+   * @param job Job to run when reconnect
+   */
+  addReconnect(job: () => Promise<void>) {
+    if (this.signer.provider instanceof WebSocketProvider) {
+      this.signer.provider.onReconnect.set(this.constructor.name, job);
+    }
+  }
 
   /**
    * Start service

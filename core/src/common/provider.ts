@@ -13,7 +13,7 @@ export class WebSocketProvider extends WebSocketProviderClass() {
   private provider?: ethers.providers.WebSocketProvider;
   private events: ethers.providers.WebSocketProvider["_events"] = [];
   private requests: ethers.providers.WebSocketProvider["_requests"] = {};
-  onReconnect: (() => Promise<void>)[] = [];
+  onReconnect: Map<string, () => Promise<void>> = new Map();
   private isReconnecting: boolean = false;
 
   // https://ja.javascript.info/proxy
@@ -63,9 +63,8 @@ export class WebSocketProvider extends WebSocketProviderClass() {
       }
 
       if (this.isReconnecting) {
-        Promise.all(this.onReconnect.map(async (job) => await job())).then(
-          () => (this.isReconnecting = false)
-        );
+        this.isReconnecting = false;
+        this.onReconnect.forEach(async (job) => await job());
       }
 
       for (const key in this.requests) {

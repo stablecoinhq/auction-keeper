@@ -179,7 +179,7 @@ export class Dog extends BaseService {
       .then((v) => Vat__factory.connect(v, this.signer));
     this.Dirt = this.dog.Dirt();
     this.Hole = this.dog.Hole();
-    this.signer.addOnReconnect(async () => this._lookupFromPastEvents())
+    this.addReconnect(async () => this._lookupFromPastEvents())
   }
 
   /**

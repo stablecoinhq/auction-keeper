@@ -87,7 +87,7 @@ export class Vow extends BaseService {
     super(signer);
     this.vow = Vow__factory.connect(vowAddress, this.signer);
     this.vat = Vat__factory.connect(vatAddress, this.signer);
-    this.signer.addOnReconnect(async () => await this._checkVowState());
+    this.addReconnect(async () => await this._checkVowState());
   }
 
   async start() {

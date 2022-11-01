@@ -92,7 +92,7 @@ export class Clip extends BaseService {
     this.ilk = ilk;
     this.clip = Clip__factory.connect(clipAddress, this.signer);
     this.vat = Vat__factory.connect(vatAddress, this.signer);
-    this.signer.addOnReconnect(async () => await this._participate());
+    this.addReconnect(async () => await this._participate());
   }
 
   async hope() {
