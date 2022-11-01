@@ -1,5 +1,6 @@
 import { ethers, network } from "hardhat";
 import { BigNumber } from "ethers";
+import { Wallet } from "@auction-keeper/core";
 
 export async function forkNetwork(n: number): Promise<void> {
   const rpcURL = `https://mainnet.infura.io/v3/${process.env.INFURA_API_KEY!}`;
@@ -20,7 +21,7 @@ export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-export const signer = ethers.Wallet.fromMnemonic(
+export const signer = Wallet.fromMnemonic(
   "test test test test test test test test test test test junk"
 ).connect(ethers.provider);
 
