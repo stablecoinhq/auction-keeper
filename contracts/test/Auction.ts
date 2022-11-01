@@ -62,6 +62,7 @@ describe("auction keeper", function () {
       const Sin = await vowContract.Sin();
       expect(before).lessThan(after);
       expect(debt.sub(Sin)).eq(BigNumber.from(0));
+      vow.stop();
     });
   });
 
@@ -88,6 +89,7 @@ describe("auction keeper", function () {
       const availableDai = await vatContract.dai(VOW_ADDRESS);
       expect(before).lessThan(after);
       expect(availableDai).eq(BigNumber.from(0));
+      vow.stop();
     });
   });
 
@@ -116,6 +118,7 @@ describe("auction keeper", function () {
       clipper.on(kickEventFilter, async (after) => {
         expect(before).lessThan(after);
       });
+      dog.stop();
     });
   });
 });

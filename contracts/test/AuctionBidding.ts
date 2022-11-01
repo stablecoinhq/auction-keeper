@@ -1,10 +1,9 @@
-import { ethers } from "hardhat";
+import { ethers, } from "hardhat";
 import { BigNumber } from "ethers";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
-import { signer, sleep } from "../src/common";
+import { forkNetwork, signer, sleep } from "../src/common";
 import { Auction, AuctionType } from "@auction-keeper/core";
-
 const surplusAuctionAmount = BigNumber.from(
   "30000000000000000000000000000000000000000000000000"
 );
@@ -15,6 +14,7 @@ const sump = BigNumber.from(
 
 async function startAuctions() {
   // Deploy auction
+  await forkNetwork();
   const [owner, addr1] = await ethers.getSigners();
   const MockDSToken = await ethers.getContractFactory("MockDSToken");
   const MockVat = await ethers.getContractFactory("MockVat");

@@ -2,16 +2,19 @@ import { ethers, network } from "hardhat";
 import { BigNumber } from "ethers";
 import { Wallet } from "@auction-keeper/core";
 
-export async function forkNetwork(n: number): Promise<void> {
+export async function forkNetwork(n?: number): Promise<void> {
   const rpcURL = `https://mainnet.infura.io/v3/${process.env.INFURA_API_KEY!}`;
+  const forkObj = n
+    ? {
+        jsonRpcUrl: rpcURL,
+        blockNumber: n,
+      }
+    : { jsonRpcUrl: rpcURL };
   network.provider.request({
     method: "hardhat_reset",
     params: [
       {
-        forking: {
-          jsonRpcUrl: rpcURL,
-          blockNumber: n,
-        },
+        forking: forkObj,
       },
     ],
   });
