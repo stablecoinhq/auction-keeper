@@ -76,7 +76,7 @@ async function main() {
   );
 
   Promise.all(
-    [vow, surplusAuction].map((v) => {
+    [dog, vow, surplusAuction].map((v) => {
       const service = v as unknown as BaseService;
       service.start();
     })

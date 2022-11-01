@@ -141,7 +141,7 @@ describe("Surplus auction", function () {
       await sleep(3000);
       const auctionInfo = await auction.getAuctionInfoById(BigNumber.from(1));
       expect(auctionInfo.guy).eq(signer.address);
-      await auction.stop();
+      auction.stop();
     });
     it("Should over bid on surplus auction", async () => {
       const { flapper } = await loadFixture(startAuctions);
@@ -163,7 +163,7 @@ describe("Surplus auction", function () {
       await sleep(5000);
       const auctionInfo = await auction.getAuctionInfoById(BigNumber.from(1));
       expect(auctionInfo.guy).eq(signer.address);
-      await auction.stop();
+      auction.stop();
     });
     // TODO: stop bidding on certain condition
     // TODO: end auction
@@ -180,7 +180,7 @@ describe("Surplus auction", function () {
       await sleep(1000);
       const auctionInfo = await auction.getAuctionInfoById(BigNumber.from(1));
       expect(auctionInfo.guy).eq(signer.address);
-      await auction.stop();
+      auction.stop();
     });
     it("Should out bid on debt auctions", async () => {
       const { flopper } = await loadFixture(startAuctions);
@@ -199,7 +199,7 @@ describe("Surplus auction", function () {
       await sleep(5000);
       const auctionInfo = await auction.getAuctionInfoById(BigNumber.from(1));
       expect(auctionInfo.guy).eq(signer.address);
-      await auction.stop();
+      auction.stop();
     });
     // TODO: stop bidding on certain condition
     // TODO: end auction

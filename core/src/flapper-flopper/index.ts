@@ -121,10 +121,6 @@ export class Auction extends BaseService {
     this._handleLogEvents();
   }
 
-  async stop() {
-    this.contract.removeAllListeners();
-  }
-
   /**
    * Check Mkr and Dai allowance for auction contracts
    * approve if needed
@@ -336,7 +332,6 @@ export class Auction extends BaseService {
     const now = new Date();
     const bidEndTime = tic;
     const auctionEndTime = end;
-    console.log(`end: ${end}`)
     const auctionExpired =
       tic.valueOf() != 0 && (bidEndTime < now || auctionEndTime < now);
     return auctionExpired;
