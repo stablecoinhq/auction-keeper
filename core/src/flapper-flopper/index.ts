@@ -142,7 +142,6 @@ export class Auction extends BaseService {
         await this._submitTx(this.contract.deal(id));
       } else {
         console.log(`Ending auction at ${endTime}`);
-        console.log(`delta ${delta}`);
         const timerId = setTimeout(async () => {
           await this._submitTx(this.contract.deal(id));
         }, delta + BUFFER);

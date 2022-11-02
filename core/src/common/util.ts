@@ -17,8 +17,7 @@ export class AsyncLock {
   async run<T>(job: () => Promise<T>): Promise<T> {
     await this._promise;
     this._enable();
-    const result = await job();
-    this._disable();
+    const result = await job().finally(() => this._disable());
     return result;
   }
 
