@@ -56,7 +56,7 @@ describe("auction keeper", function () {
       const flapperAddress = await vow.flapperAddress();
       const flapper = Flapper__factory.connect(flapperAddress, signer);
       const before = await flapper.kicks();
-      await sleep(6000);
+      await sleep(10000);
       const after = await flapper.kicks();
       const debt = await vatContract.sin(VOW_ADDRESS);
       const Sin = await vowContract.Sin();
@@ -84,7 +84,7 @@ describe("auction keeper", function () {
       const flopperAddress = await vow.flopperAddress();
       const flopper = Flopper__factory.connect(flopperAddress, signer);
       const before = await flopper.kicks();
-      await sleep(6000);
+      await sleep(10000);
       const after = await flopper.kicks();
       const availableDai = await vatContract.dai(VOW_ADDRESS);
       expect(before).lessThan(after);

@@ -1,4 +1,4 @@
-import { ethers, } from "hardhat";
+import { ethers } from "hardhat";
 import { BigNumber } from "ethers";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
@@ -80,6 +80,7 @@ async function startAuctions() {
     flapper,
     flopper,
     owner,
+    auctionId: 1,
   };
 }
 
@@ -144,7 +145,7 @@ describe("Surplus auction", function () {
       auction.stop();
     });
     it("Should over bid on surplus auction", async () => {
-      const { flapper } = await loadFixture(startAuctions);
+      const { flapper, auctionId } = await loadFixture(startAuctions);
       const [, addr1] = await ethers.getSigners();
       const auction = new Auction({
         auctionType: "surplus",
@@ -153,13 +154,7 @@ describe("Surplus auction", function () {
       });
       auction.start();
       await sleep(1000);
-      await flapper
-        .connect(addr1)
-        .tend(
-          1,
-          surplusAuctionAmount,
-          10
-        );
+      await flapper.connect(addr1).tend(auctionId, surplusAuctionAmount, 10);
       await sleep(5000);
       const auctionInfo = await auction.getAuctionInfoById(BigNumber.from(1));
       expect(auctionInfo.guy).eq(signer.address);
@@ -183,7 +178,7 @@ describe("Surplus auction", function () {
       auction.stop();
     });
     it("Should out bid on debt auctions", async () => {
-      const { flopper } = await loadFixture(startAuctions);
+      const { flopper, auctionId } = await loadFixture(startAuctions);
       const [, addr1] = await ethers.getSigners();
       const auction = new Auction({
         auctionType: "debt",
@@ -195,7 +190,7 @@ describe("Surplus auction", function () {
       // Someone else bidded
       await flopper
         .connect(addr1)
-        .dent(1, BigNumber.from("200000000000000000000"), sump);
+        .dent(auctionId, BigNumber.from("200000000000000000000"), sump);
       await sleep(5000);
       const auctionInfo = await auction.getAuctionInfoById(BigNumber.from(1));
       expect(auctionInfo.guy).eq(signer.address);

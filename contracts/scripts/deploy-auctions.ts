@@ -1,5 +1,6 @@
 import { ethers } from "hardhat";
 import { BigNumber } from "ethers";
+import { Commands } from "../src/common";
 
 async function main() {
   /**
@@ -41,6 +42,9 @@ async function main() {
   const mkrAmount = BigNumber.from(
     "10000000000000000000000000000000000000000000000000"
   );
+  // ttl, tauを変更する
+  await flapper.connect(addr1).file(Commands.ttl, 10 * 60);
+  await flapper.connect(addr1).file(Commands.tau, 20 * 60);
   // オークション用にDAIをmintしておく
   await mockVat.mint(owner.address, auctionAmount);
   // ownerに対してMKRをmintして、allowanceも引き上げる

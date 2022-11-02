@@ -24,6 +24,8 @@ export function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+export const VOID_ADDRESS = "0x0000000000000000000000000000000000000000";
+
 export const signer = Wallet.fromMnemonic(
   "test test test test test test test test test test test junk"
 ).connect(ethers.provider);
@@ -68,6 +70,8 @@ export const Commands = {
   hump: toHex("hump"),
   wait: toHex("wait"),
   Line: toHex("Line"),
+  ttl: toHex("ttl"),
+  tau: toHex("tau"),
 };
 
 export const ilk = toHex("ETH-A");
