@@ -89,4 +89,17 @@ export class VaultCollection {
     const vaults = new Map().set(ilk, addresses);
     return new VaultCollection(vaults);
   }
+
+  static fromList(vaults: Vault[]): VaultCollection {
+    const vaultCollection = new VaultCollection();
+    for (const vault of vaults) {
+      vaultCollection.addVault(vault.ilk, vault.address);
+    }
+    return vaultCollection;
+  }
+
+  static fromVaultCollections(vaultCollections: VaultCollection[]): VaultCollection {
+    const vaultCollection = new VaultCollection();
+    return vaultCollection.merge(vaultCollections);
+  }
 }
