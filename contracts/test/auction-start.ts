@@ -104,6 +104,7 @@ describe("auction keeper", function () {
         signer,
         fromBlock: 12316454,
         toBlock: 12317309,
+        dataStoreMode: "memory"
       });
       const [{ address }] = await dog.getClipAddresses([
         "0x4c494e4b2d410000000000000000000000000000000000000000000000000000",

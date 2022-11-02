@@ -7,12 +7,16 @@ import "reflect-metadata";
 import { DataSource } from "typeorm";
 
 export class DataStore {
-  vaultRepository: VaultRepository;
-  blockRepository: BlockRepository;
+  vaultRepository!: VaultRepository;
+  blockRepository!: BlockRepository;
+  dataSource: DataSource;
 
   constructor(database: Database) {
-    const dataSource = getDataSource(database);
-    dataSource.initialize();
+    this.dataSource = getDataSource(database);
+    this.dataSource.initialize().then((source) => {
+      this.vaultRepository = new VaultRepository(source);
+      this.blockRepository = new BlockRepository(source);
+    });
   }
   async merge(vss: VaultCollection[]): Promise<void> {
     const vs = VaultCollection.fromVaultCollections(vss);
@@ -31,8 +35,8 @@ export class DataStore {
   async getByIlk(ilk: string): Promise<VaultCollection> {
     return this.vaultRepository.getByIlk(ilk);
   }
-  async addBlock(num: number, hash: string): Promise<void> {
-    this.blockRepository.insertBlock(num, hash);
+  async addBlock(num: number): Promise<void> {
+    this.blockRepository.insertBlock(num);
   }
   async getLatestBlock(): Promise<Block | undefined> {
     return this.blockRepository.getLatestBlock();
@@ -51,7 +55,7 @@ export function getDataSource(path: string) {
   });
 }
 
-enum Database {
+export enum Database {
   memory = ":memory:",
   file = "database/database.sqlite",
 }

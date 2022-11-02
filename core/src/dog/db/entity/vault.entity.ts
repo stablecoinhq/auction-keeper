@@ -3,7 +3,7 @@ import { Entity, PrimaryColumn } from "typeorm";
 @Entity()
 export class Vault {
   @PrimaryColumn()
-  ilk: string;
+  ilk!: string;
   @PrimaryColumn()
-  address: string;
+  address!: string;
 }

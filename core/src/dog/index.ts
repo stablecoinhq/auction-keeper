@@ -12,6 +12,7 @@ import { VaultCollection } from "./vault-collection";
 import { FunctionSigs, VOID_ADDRESS, SPOT } from "./constants";
 import { BaseService } from "../common/base-service.class";
 import { Wallet } from "../common/wallet";
+import { Database, DataStore } from "./db/data-source";
 
 interface VatIlkInfo {
   Art: BigNumber;
@@ -124,6 +125,8 @@ export interface DogConfig {
    * Block to end
    */
   toBlock: number | "latest";
+
+  dataStoreMode: "memory" | "file";
 }
 
 /**
@@ -152,7 +155,9 @@ export class Dog extends BaseService {
   /**
    * List of vaults grouped by ilk
    */
-  private vaultCollection: VaultCollection;
+  // private vaultCollection: VaultCollection;
+
+  private dataStore: DataStore;
   /**
    * Wallet address
    */
@@ -167,19 +172,21 @@ export class Dog extends BaseService {
   readonly Hole: Promise<BigNumber>;
 
   constructor(config: DogConfig) {
-    const { dogAddress, signer, fromBlock, toBlock } = config;
+    const { dogAddress, signer, fromBlock, toBlock, dataStoreMode } = config;
     super(signer, dogAddress);
+    const mode = dataStoreMode === "file" ? Database.file : Database.memory;
+    this.dataStore = new DataStore(mode);
     this.signerAddress = this.signer.address;
     this.fromBlock = fromBlock;
     this.toBlock = toBlock;
-    this.vaultCollection = new VaultCollection();
+    // this.vaultCollection = new VaultCollection();
     this.dog = Dog__factory.connect(dogAddress, this.signer);
     this.vatContract = this.dog
       .vat()
       .then((v) => Vat__factory.connect(v, this.signer));
     this.Dirt = this.dog.Dirt();
     this.Hole = this.dog.Hole();
-    this.addReconnect(() => this._lookupFromPastEvents())
+    this.addReconnect(() => this._lookupFromPastEvents());
   }
 
   /**
@@ -238,26 +245,38 @@ export class Dog extends BaseService {
       this.toBlock === "latest"
         ? await this.signer.provider.getBlockNumber()
         : this.toBlock;
-    const bunch = splitBlocks(this.fromBlock, latestBlock);
+    const fromBlock = await this.dataStore.getLatestBlock();
+    const from = fromBlock?.number || this.fromBlock;
+    const bunch = splitBlocks(from, latestBlock);
 
-    console.log("Fetching vault data from past events");
-    const vaultCollections = await Promise.all(
-      bunch.map(async ({ from, to }) => {
-        return [FunctionSigs.fork, FunctionSigs.frob].reduce(
-          async (prev, event) => {
-            const prevs = await prev;
-            const eventRawData = await this._getPastEvents(from, to, event);
-            const urnsByIlk = parseEventsAndGroup(eventRawData, prevs);
-            return urnsByIlk;
-          },
-          Promise.resolve(new VaultCollection())
-        );
-      })
-    );
+    let vaultCollections: VaultCollection[] = [];
+    if (from <= latestBlock) {
+      console.log(
+        `Fetching vault data from past events from: ${from}, to: ${latestBlock}`
+      );
+      vaultCollections = await Promise.all(
+        bunch.map(async ({ from, to }) => {
+          return [FunctionSigs.fork, FunctionSigs.frob].reduce(
+            async (prev, event) => {
+              const prevs = await prev;
+              const eventRawData = await this._getPastEvents(from, to, event);
+              const urnsByIlk = parseEventsAndGroup(eventRawData, prevs);
+              return urnsByIlk;
+            },
+            Promise.resolve(new VaultCollection())
+          );
+        })
+      );
+      await this.dataStore.addBlock(latestBlock);
+    }
 
-    this.vaultCollection.merge(vaultCollections);
-
-    const barkResult = await this._checkVaultCollections(this.vaultCollection);
+    const allVaults = await this.dataStore.getAllVaults();
+    const toCheck = VaultCollection.fromVaultCollections([
+      ...vaultCollections,
+      allVaults,
+    ]);
+    const barkResult = await this._checkVaultCollections(toCheck);
+    await this.dataStore.merge(vaultCollections);
 
     barkResult.forEach(({ ilk, address }) => {
       console.log(`Barked at ilk: ${ilk}, address: ${address}`);
@@ -296,20 +315,20 @@ export class Dog extends BaseService {
             case FunctionSigs.fold:
               // Check vault that are affected by fold (Change of stability fee rate)
               console.log(`Fee rate of ${ilk} changed, checking vaults`);
-              const targets = this.vaultCollection.getByIlk(ilk);
+              const targets = await this.dataStore.getByIlk(ilk);
               this._checkVaultCollections(targets);
               break;
             case FunctionSigs.file:
               // Check vaults that are affected by spot (Change of token price)
               if (arg2 === SPOT) {
                 console.log(`Safey margin of ${ilk} changed, checking vaults`);
-                const targets = this.vaultCollection.getByIlk(ilk);
+                const targets = await this.dataStore.getByIlk(ilk);
                 this._checkVaultCollections(targets);
               }
               break;
             default:
               const vaultCollection = parseEventAndGroup(eventRawData);
-              this.vaultCollection.push(vaultCollection);
+              await this.dataStore.addVaults(vaultCollection);
               this._checkVaultCollections(vaultCollection);
               break;
           }

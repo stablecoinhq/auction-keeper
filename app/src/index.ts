@@ -32,6 +32,7 @@ async function main() {
     signer: signer,
     fromBlock: envs.FROM_BLOCK,
     toBlock: envs.TO_BLOCK,
+    dataStoreMode: "file"
   });
   const vatAddress = await dog.getVatAddress();
 
@@ -44,7 +45,7 @@ async function main() {
   const flapperAddress = await vow.flapperAddress();
   const surplusAuction = new Auction({
     auctionType: "surplus",
-    auctionAddress: "0xCbac2F6865964712FfDaE404cd6a366914aB26c9",
+    auctionAddress: flapperAddress,
     signer,
   });
 
@@ -76,7 +77,7 @@ async function main() {
   );
 
   Promise.all(
-    [surplusAuction].map((v) => {
+    [dog].map((v) => {
       const service = v as unknown as BaseService;
       service.start();
     })

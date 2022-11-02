@@ -1,4 +1,4 @@
-import { Repository } from "typeorm";
+import { DataSource, Repository } from "typeorm";
 import { Vault } from "../entity/vault.entity";
 import {
   VaultCollection,
@@ -6,6 +6,9 @@ import {
 } from "../../vault-collection";
 
 export class VaultRepository extends Repository<Vault> {
+  constructor(dataSource: DataSource) {
+    super(Vault, dataSource.createEntityManager());
+  }
   async addVault(vault: VaultInterface): Promise<void> {
     const { ilk, address } = vault;
     const vaultExists = await this.findOneBy({ ilk, address });
