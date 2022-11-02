@@ -12,7 +12,7 @@ import { VaultCollection } from "./vault-collection";
 import { FunctionSigs, VOID_ADDRESS, SPOT } from "./constants";
 import { BaseService } from "../common/base-service.class";
 import { Wallet } from "../common/wallet";
-import { Database, DataStore } from "./db/data-source";
+import { Database, DataStore } from "./db/data-store";
 
 interface VatIlkInfo {
   Art: BigNumber;
@@ -126,6 +126,9 @@ export interface DogConfig {
    */
   toBlock: number | "latest";
 
+  /**
+   * Where to store data
+   */
   dataStoreMode: "memory" | "file";
 }
 
@@ -276,7 +279,9 @@ export class Dog extends BaseService {
       allVaults,
     ]);
     const barkResult = await this._checkVaultCollections(toCheck);
-    await this.dataStore.merge(vaultCollections);
+    await this.dataStore.addVaults(
+      VaultCollection.fromVaultCollections(vaultCollections)
+    );
 
     barkResult.forEach(({ ilk, address }) => {
       console.log(`Barked at ilk: ${ilk}, address: ${address}`);
@@ -306,10 +311,12 @@ export class Dog extends BaseService {
           topics: string[];
           data: string;
           transactionHash: string;
+          blockNumber: number;
         };
         this._processEvent(eventTx, async () => {
           const [, ilk, arg2] = eventTx.topics;
           const eventRawData = eventTx.data;
+          await this.dataStore.addBlock(eventTx.blockNumber);
 
           switch (event) {
             case FunctionSigs.fold:
@@ -528,6 +535,9 @@ export class Dog extends BaseService {
   }
 }
 
+/**
+ * Compare two numbers, return the smaller one
+ */
 function min(a: BigNumber, b: BigNumber) {
   return a.lte(b) ? a : b;
 }

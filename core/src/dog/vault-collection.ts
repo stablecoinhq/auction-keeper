@@ -40,13 +40,13 @@ export class VaultCollection {
     vs: VaultCollection | VaultCollection[]
   ): VaultCollection {
     if (vs instanceof VaultCollection) {
-      return this.merge([vs]);
+      return this._merge([vs]);
     }
-    return this.merge(vs);
+    return this._merge(vs);
   }
 
   // Merge other VaultCollections
-  merge(
+  private _merge(
     this: VaultCollection,
     vaultCollections: VaultCollection[]
   ): VaultCollection {
@@ -83,12 +83,6 @@ export class VaultCollection {
     return ls.values();
   }
 
-  // Return VaultCollection of specific ilk
-  getByIlk(ilk: string): VaultCollection {
-    const addresses = this._vaults.get(ilk) || new Set();
-    const vaults = new Map().set(ilk, addresses);
-    return new VaultCollection(vaults);
-  }
 
   static fromList(vaults: Vault[]): VaultCollection {
     const vaultCollection = new VaultCollection();
@@ -98,8 +92,9 @@ export class VaultCollection {
     return vaultCollection;
   }
 
-  static fromVaultCollections(vaultCollections: VaultCollection[]): VaultCollection {
-    const vaultCollection = new VaultCollection();
-    return vaultCollection.merge(vaultCollections);
+  static fromVaultCollections(
+    vaultCollections: VaultCollection[]
+  ): VaultCollection {
+    return new VaultCollection()._merge(vaultCollections);
   }
 }

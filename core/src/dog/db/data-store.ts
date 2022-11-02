@@ -6,56 +6,89 @@ import { VaultCollection, Vault as VaultInterface } from "../vault-collection";
 import "reflect-metadata";
 import { DataSource } from "typeorm";
 
+/**
+ * Class used to persist blockchain data within database
+ */
 export class DataStore {
-  vaultRepository!: VaultRepository;
-  blockRepository!: BlockRepository;
-  dataSource: DataSource;
+  private vaultRepository!: VaultRepository;
+  private blockRepository!: BlockRepository;
+  private dataSource: DataSource;
 
   constructor(database: Database) {
-    this.dataSource = getDataSource(database);
+    this.dataSource = new DataSource({
+      type: "sqlite",
+      database: database,
+      synchronize: true,
+      logging: false,
+      entities: [Block, Vault],
+      migrations: [],
+      subscribers: [],
+    });
     this.dataSource.initialize().then((source) => {
       this.vaultRepository = new VaultRepository(source);
       this.blockRepository = new BlockRepository(source);
     });
   }
-  async merge(vss: VaultCollection[]): Promise<void> {
-    const vs = VaultCollection.fromVaultCollections(vss);
-    this.vaultRepository.addVaults(vs);
-  }
+
+  /**
+   * Insert vault collection to database
+   * @param vs VaultCollection
+   */
   async addVaults(vs: VaultCollection): Promise<void> {
     this.vaultRepository.addVaults(vs);
   }
+
+  /**
+   * Insert single vault to database
+   * @param vault Vault
+   */
   async addVault(vault: VaultInterface): Promise<void> {
     this.vaultRepository.addVault(vault);
   }
 
+  /**
+   * Return all vault data within database
+   * @returns Vault collections
+   */
   async getAllVaults(): Promise<VaultCollection> {
     return this.vaultRepository.getAllVaults();
   }
+
+  /**
+   * Get vault by given ilk
+   * @param ilk ilk
+   * @returns
+   */
   async getByIlk(ilk: string): Promise<VaultCollection> {
     return this.vaultRepository.getByIlk(ilk);
   }
+
+  /**
+   * Add block to database
+   * @param num blockNumber
+   */
   async addBlock(num: number): Promise<void> {
     this.blockRepository.insertBlock(num);
   }
+
+  /**
+   * Returns the latest block height in the database
+   */
   async getLatestBlock(): Promise<Block | undefined> {
     return this.blockRepository.getLatestBlock();
   }
 }
 
-export function getDataSource(path: string) {
-  return new DataSource({
-    type: "sqlite",
-    database: path,
-    synchronize: true,
-    logging: false,
-    entities: [Block, Vault],
-    migrations: [],
-    subscribers: [],
-  });
-}
-
+/**
+ * Where to store database
+ */
 export enum Database {
+  /**
+   * Within memory
+   */
   memory = ":memory:",
+  /**
+   * On a file
+   */
   file = "database/database.sqlite",
 }
