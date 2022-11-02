@@ -88,7 +88,7 @@ export class Clip extends BaseService {
 
   constructor(args: ClipConfig) {
     const { clipAddress, vatAddress, ilk, signer } = args;
-    super(signer);
+    super(signer, clipAddress);
     this.ilk = ilk;
     this.clip = Clip__factory.connect(clipAddress, this.signer);
     this.vat = Vat__factory.connect(vatAddress, this.signer);

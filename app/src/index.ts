@@ -44,7 +44,7 @@ async function main() {
   const flapperAddress = await vow.flapperAddress();
   const surplusAuction = new Auction({
     auctionType: "surplus",
-    auctionAddress: flapperAddress,
+    auctionAddress: "0xCbac2F6865964712FfDaE404cd6a366914aB26c9",
     signer,
   });
 
@@ -76,7 +76,7 @@ async function main() {
   );
 
   Promise.all(
-    [dog, vow, surplusAuction].map((v) => {
+    [surplusAuction].map((v) => {
       const service = v as unknown as BaseService;
       service.start();
     })

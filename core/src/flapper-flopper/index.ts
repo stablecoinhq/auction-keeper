@@ -70,6 +70,7 @@ export interface AuctionConfig {
   auctionAddress: string;
   signer: Wallet;
 }
+
 /**
  * Auction class. Main roles are
  * - Get list of ongoing auctions
@@ -83,10 +84,11 @@ export class Auction extends BaseService {
   readonly vatContract: Promise<Vat>;
   readonly contract: AuctionContract;
   readonly DS_Token: Promise<DS_Token>;
+  readonly auctionSchedulers: Map<BigNumber, NodeJS.Timeout> = new Map();
 
   constructor(config: AuctionConfig) {
     const { auctionType, auctionAddress, signer } = config;
-    super(signer);
+    super(signer, auctionAddress);
     this.auctionType =
       auctionType === "debt" ? AuctionType.Debt : AuctionType.Surplus;
     this.contract =
@@ -99,12 +101,7 @@ export class Auction extends BaseService {
     this.vatContract = this.contract
       .vat()
       .then((v) => Vat__factory.connect(v, this.signer));
-    this.addReconnect(async () => {
-      const [auction] = await this.getAuctionInfos();
-      if (auction) {
-        await this._bid(auction.id);
-      }
-    });
+    this.addReconnect(() => this._checkAuctionsOnStart());
   }
 
   /**
@@ -112,13 +109,46 @@ export class Auction extends BaseService {
    */
   async start() {
     await this._checkAllowanceAndApprove();
-    // TODO: participate in multiple auctions
-    const [auction] = await this.getAuctionInfos();
-    if (auction) {
-      await this._bid(auction.id);
-    }
+    await this._checkAuctionsOnStart();
     this._handleKickEvents();
     this._handleLogEvents();
+  }
+
+  private async _checkAuctionsOnStart() {
+    // TODO: participate in multiple auctions
+    const auctions = await this.getAuctionInfos();
+    console.log(auctions);
+    auctions.forEach((auction) => this._setTimerToEndAuction(auction));
+    if (auctions[0]) {
+      await this._bid(auctions[0]);
+    }
+  }
+
+  private async _setTimerToEndAuction(auction: AuctionInfo) {
+    // 現在の時刻とtic, endどちらか小さい方の差分をタイマーとしたスケジューラーを起動する
+    const { id, tic, end } = auction;
+    // ticが0ならそもそもオークションを終了できないので何もしない
+    if (typeof tic === "number" && tic === 0) {
+      return;
+    } else {
+      // Add buffer to delta
+      const BUFFER = 60 * 1000;
+      clearTimeout(this.auctionSchedulers.get(id));
+      const ticTime = typeof tic === "number" ? new Date(tic) : tic;
+      const endTime = ticTime.getTime() <= end.getTime() ? ticTime : end;
+      const delta = endTime.getTime() - new Date().getTime();
+      if (delta <= 0) {
+        console.log("Ending auction");
+        await this._submitTx(this.contract.deal(id));
+      } else {
+        console.log(`Ending auction at ${endTime}`);
+        console.log(`delta ${delta}`);
+        const timerId = setTimeout(async () => {
+          await this._submitTx(this.contract.deal(id));
+        }, delta + BUFFER);
+        this.auctionSchedulers.set(id, timerId);
+      }
+    }
   }
 
   /**
@@ -163,6 +193,7 @@ export class Auction extends BaseService {
         await this._processEvent(eventTx, async () => {
           const auctionId = BigNumber.from(eventTx.topics.at(2));
           console.log(`Event occured on auction ${auctionId.toString()}`);
+          const auctionInfo = await this.getAuctionInfoById(auctionId);
           switch (event) {
             // Auction is ended
             case FunctionSig.deal:
@@ -171,17 +202,19 @@ export class Auction extends BaseService {
             // Someone bidded on Flopper/Debt auction
             case FunctionSig.dent:
               console.log(`Someone bidded on auction ${auctionId.toString()}`);
-              await this._bid(auctionId);
+              await this._bid(auctionInfo);
+              await this._setTimerToEndAuction(auctionInfo);
               break;
             // Someone bidded on Flapper/Surplus auction
             case FunctionSig.tend:
               console.log(`Someone bidded on auction ${auctionId.toString()}`);
-              await this._bid(auctionId);
+              await this._bid(auctionInfo);
+              await this._setTimerToEndAuction(auctionInfo);
               break;
             // Auction restarted
             case FunctionSig.tick:
               console.log(`Auction ${auctionId.toString()} restarted`);
-              await this._bid(auctionId);
+              await this._bid(auctionInfo);
               break;
             default:
               break;
@@ -201,7 +234,8 @@ export class Auction extends BaseService {
       this.contract.on(eventFilter, async (id, _bid, _lot, _guy, kickEvent) => {
         this._processEvent(kickEvent, async () => {
           console.log(`Debt auction id ${id} started`);
-          await this._bid(id);
+          const auctionInfo = await this.getAuctionInfoById(id);
+          await this._bid(auctionInfo);
         });
       });
     } else {
@@ -210,7 +244,8 @@ export class Auction extends BaseService {
       this.contract.on(eventFilter, async (id, _bid, _lot, kickEvent) => {
         this._processEvent(kickEvent, async () => {
           console.log(`Surplus auction id ${id} started`);
-          await this._bid(id);
+          const auctionInfo = await this.getAuctionInfoById(id);
+          await this._bid(auctionInfo);
         });
       });
     }
@@ -227,11 +262,7 @@ export class Auction extends BaseService {
     let auctionInfos: AuctionInfo[] = [];
     while (i.gte(0)) {
       const auctionInfo = await this.getAuctionInfoById(i);
-      if (
-        i.eq(0) ||
-        Auction.isAuctionExpired(auctionInfo) ||
-        Auction.isEmptyAuction(auctionInfo)
-      ) {
+      if (i.eq(0) || Auction.isEmptyAuction(auctionInfo)) {
         break;
       }
       auctionInfos.push(auctionInfo);
@@ -343,9 +374,9 @@ export class Auction extends BaseService {
    */
   private async _bid(
     this: Auction,
-    id: BigNumber
+    auction: AuctionInfo
   ): Promise<ContractTransaction | undefined> {
-    return this._submitTx(this.bid(id));
+    return this._submitTx(this.bid(auction));
   }
 
   /**
@@ -354,15 +385,15 @@ export class Auction extends BaseService {
    */
   async bid(
     this: Auction,
-    id: BigNumber
+    auctionInfo: AuctionInfo
   ): Promise<ContractTransaction | undefined>;
   async bid(
     this: Auction,
-    id: BigNumber,
+    auctionInfo: AuctionInfo,
     lot?: BigNumber,
     bid?: BigNumber
   ): Promise<ContractTransaction | undefined> {
-    const auctionInfo = await this.getAuctionInfoById(id);
+    const { id } = auctionInfo;
 
     // Highest bidder is us
     if (auctionInfo.guy === this.signer.address) {

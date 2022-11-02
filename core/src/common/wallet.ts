@@ -9,7 +9,6 @@ import { Wallet as EtherWallet, BytesLike, Wordlist } from "ethers";
 import { Deferrable } from "ethers/lib/utils";
 import { defaultPath, HDNode } from "@ethersproject/hdnode";
 import { AsyncLock } from "./util";
-import { WebSocketProvider } from "./provider";
 
 /**
  * Customized wallet class
@@ -35,7 +34,11 @@ export class Wallet extends EtherWallet {
   override async sendTransaction(
     transaction: Deferrable<TransactionRequest>
   ): Promise<TransactionResponse> {
-    return this.lock.run(async () => super.sendTransaction(transaction));
+    return this.lock.run(async () => {
+      const result = await super.sendTransaction(transaction);
+      console.log(`Transaction ${result.hash} submitted`)
+      return result;
+    });
   }
 
   override connect(provider: Provider): Wallet {

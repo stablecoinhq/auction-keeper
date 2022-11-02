@@ -84,7 +84,7 @@ export class Vow extends BaseService {
 
   constructor(config: VowConfig) {
     const { vowAddress, vatAddress, signer } = config;
-    super(signer);
+    super(signer, vowAddress);
     this.vow = Vow__factory.connect(vowAddress, this.signer);
     this.vat = Vat__factory.connect(vatAddress, this.signer);
     this.addReconnect(async () => await this._checkVowState());

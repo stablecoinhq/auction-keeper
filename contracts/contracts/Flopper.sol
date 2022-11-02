@@ -1,10 +1,10 @@
 /**
  *Submitted for verification at Etherscan.io on 2019-11-26
-*/
+ */
 
 /**
  *Submitted for verification at Etherscan.io on 2019-11-14
-*/
+ */
 
 // hevm: flattened sources of /nix/store/8xb41r4qd0cjb63wcrxf1qmfg88p0961-dss-6fd7de0/src/flop.sol
 pragma solidity =0.5.12;
@@ -29,29 +29,31 @@ import "./Interface.sol";
 
 contract LibNote {
     event LogNote(
-        bytes4   indexed  sig,
-        address  indexed  usr,
-        bytes32  indexed  arg1,
-        bytes32  indexed  arg2,
-        bytes             data
+        bytes4 indexed sig,
+        address indexed usr,
+        bytes32 indexed arg1,
+        bytes32 indexed arg2,
+        bytes data
     ) anonymous;
 
-    modifier note {
+    modifier note() {
         _;
         assembly {
             // log an 'anonymous' event with a constant 6 words of calldata
             // and four indexed topics: selector, caller, arg1 and arg2
-            let mark := msize                         // end of memory ensures zero
-            mstore(0x40, add(mark, 288))              // update free memory pointer
-            mstore(mark, 0x20)                        // bytes type data offset
-            mstore(add(mark, 0x20), 224)              // bytes size (padded)
-            calldatacopy(add(mark, 0x40), 0, 224)     // bytes payload
-            log4(mark, 288,                           // calldata
-                 shl(224, shr(224, calldataload(0))), // msg.sig
-                 caller,                              // msg.sender
-                 calldataload(4),                     // arg1
-                 calldataload(36)                     // arg2
-                )
+            let mark := msize // end of memory ensures zero
+            mstore(0x40, add(mark, 288)) // update free memory pointer
+            mstore(mark, 0x20) // bytes type data offset
+            mstore(add(mark, 0x20), 224) // bytes size (padded)
+            calldatacopy(add(mark, 0x40), 0, 224) // bytes payload
+            log4(
+                mark,
+                288, // calldata
+                shl(224, shr(224, calldataload(0))), // msg.sig
+                caller, // msg.sender
+                calldataload(4), // arg1
+                calldataload(36) // arg2
+            )
         }
     }
 }
@@ -90,10 +92,17 @@ contract LibNote {
 
 contract Flopper is LibNote {
     // --- Auth ---
-    mapping (address => uint) public wards;
-    function rely(address usr) external note auth { wards[usr] = 1; }
-    function deny(address usr) external note auth { wards[usr] = 0; }
-    modifier auth {
+    mapping(address => uint) public wards;
+
+    function rely(address usr) external note auth {
+        wards[usr] = 1;
+    }
+
+    function deny(address usr) external note auth {
+        wards[usr] = 0;
+    }
+
+    modifier auth() {
         require(wards[msg.sender] == 1, "Flopper/not-authorized");
         _;
     }
@@ -102,32 +111,27 @@ contract Flopper is LibNote {
     struct Bid {
         uint256 bid;
         uint256 lot;
-        address guy;  // high bidder
-        uint48  tic;  // expiry time
-        uint48  end;
+        address guy; // high bidder
+        uint48 tic; // expiry time
+        uint48 end;
     }
 
-    mapping (uint => Bid) public bids;
+    mapping(uint => Bid) public bids;
 
-    VatLike  public   vat;
-    GemLike  public   gem;
+    VatLike public vat;
+    GemLike public gem;
 
-    uint256  constant ONE = 1.00E18;
-    uint256  public   beg = 1.05E18;  // 5% minimum bid increase
-    uint256  public   pad = 1.50E18;  // 50% lot increase for tick
-    uint48   public   ttl = 3 hours;  // 3 hours bid lifetime
-    uint48   public   tau = 2 days;   // 2 days total auction length
-    uint256  public kicks = 0;
-    uint256  public live;
-    address  public vow;  // not used until shutdown
+    uint256 constant ONE = 1.00E18;
+    uint256 public beg = 1.05E18; // 5% minimum bid increase
+    uint256 public pad = 1.50E18; // 50% lot increase for tick
+    uint48 public ttl = 3 hours; // 3 hours bid lifetime
+    uint48 public tau = 2 days; // 2 days total auction length
+    uint256 public kicks = 0;
+    uint256 public live;
+    address public vow; // not used until shutdown
 
     // --- Events ---
-    event Kick(
-      uint256 id,
-      uint256 lot,
-      uint256 bid,
-      address indexed gal
-    );
+    event Kick(uint256 id, uint256 lot, uint256 bid, address indexed gal);
 
     // --- Init ---
     constructor(address vat_, address gem_) public {
@@ -141,6 +145,7 @@ contract Flopper is LibNote {
     function add(uint48 x, uint48 y) internal pure returns (uint48 z) {
         require((z = x + y) >= x);
     }
+
     function mul(uint x, uint y) internal pure returns (uint z) {
         require(y == 0 || (z = x * y) / y == x);
     }
@@ -155,7 +160,11 @@ contract Flopper is LibNote {
     }
 
     // --- Auction ---
-    function kick(address gal, uint lot, uint bid) external auth returns (uint id) {
+    function kick(
+        address gal,
+        uint lot,
+        uint bid
+    ) external auth returns (uint id) {
         require(live == 1, "Flopper/not-live");
         require(kicks < uint(-1), "Flopper/overflow");
         id = ++kicks;
@@ -167,21 +176,33 @@ contract Flopper is LibNote {
 
         emit Kick(id, lot, bid, gal);
     }
+
     function tick(uint id) external note {
         require(bids[id].end < now, "Flopper/not-finished");
         require(bids[id].tic == 0, "Flopper/bid-already-placed");
         bids[id].lot = mul(pad, bids[id].lot) / ONE;
         bids[id].end = add(uint48(now), tau);
     }
-    function dent(uint id, uint lot, uint bid) external note {
+
+    function dent(
+        uint id,
+        uint lot,
+        uint bid
+    ) external note {
         require(live == 1, "Flopper/not-live");
         require(bids[id].guy != address(0), "Flopper/guy-not-set");
-        require(bids[id].tic > now || bids[id].tic == 0, "Flopper/already-finished-tic");
+        require(
+            bids[id].tic > now || bids[id].tic == 0,
+            "Flopper/already-finished-tic"
+        );
         require(bids[id].end > now, "Flopper/already-finished-end");
 
         require(bid == bids[id].bid, "Flopper/not-matching-bid");
-        require(lot <  bids[id].lot, "Flopper/lot-not-lower");
-        require(mul(beg, lot) <= mul(bids[id].lot, ONE), "Flopper/insufficient-decrease");
+        require(lot < bids[id].lot, "Flopper/lot-not-lower");
+        require(
+            mul(beg, lot) <= mul(bids[id].lot, ONE),
+            "Flopper/insufficient-decrease"
+        );
 
         vat.move(msg.sender, bids[id].guy, bid);
 
@@ -189,17 +210,23 @@ contract Flopper is LibNote {
         bids[id].lot = lot;
         bids[id].tic = add(uint48(now), ttl);
     }
+
     function deal(uint id) external note {
         require(live == 1, "Flopper/not-live");
-        require(bids[id].tic != 0 && (bids[id].tic < now || bids[id].end < now), "Flopper/not-finished");
+        require(
+            bids[id].tic != 0 && (bids[id].tic < now || bids[id].end < now),
+            "Flopper/not-finished"
+        );
         gem.mint(bids[id].guy, bids[id].lot);
         delete bids[id];
     }
+
     // --- Shutdown ---
     function cage() external note auth {
-       live = 0;
-       vow = msg.sender;
+        live = 0;
+        vow = msg.sender;
     }
+
     function yank(uint id) external note {
         require(live == 0, "Flopper/still-live");
         require(bids[id].guy != address(0), "Flopper/guy-not-set");

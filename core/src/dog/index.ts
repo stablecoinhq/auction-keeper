@@ -168,7 +168,7 @@ export class Dog extends BaseService {
 
   constructor(config: DogConfig) {
     const { dogAddress, signer, fromBlock, toBlock } = config;
-    super(signer);
+    super(signer, dogAddress);
     this.signerAddress = this.signer.address;
     this.fromBlock = fromBlock;
     this.toBlock = toBlock;

@@ -10,7 +10,10 @@ export abstract class BaseService {
   processedTxHashes: Set<string> = new Set();
   private lock = new AsyncLock();
 
-  constructor(protected readonly signer: Wallet) {}
+  constructor(
+    protected readonly signer: Wallet,
+    private readonly contractAddress: string
+  ) {}
 
   /**
    * Register job to process when web socket is reconnected
@@ -18,7 +21,10 @@ export abstract class BaseService {
    */
   addReconnect(job: () => Promise<void>) {
     if (this.signer.provider instanceof WebSocketProvider) {
-      this.signer.provider.onReconnect.set(this.constructor.name, job);
+      this.signer.provider.onReconnect.set(
+        `${this.constructor.name}-${this.contractAddress}`,
+        job
+      );
     }
   }
 
@@ -28,7 +34,7 @@ export abstract class BaseService {
   abstract start(): Promise<void>;
 
   stop() {
-    this.signer.provider.removeAllListeners()
+    this.signer.provider.removeAllListeners();
   }
 
   /** Process events
@@ -43,7 +49,7 @@ export abstract class BaseService {
         console.log(`Event ${transactionHash} already processed`);
         return;
       } else {
-        console.log(`Processing ${transactionHash}`);
+        console.log(`Processing event: ${transactionHash}`);
         await processFunction();
         this.processedTxHashes.add(transactionHash);
       }
