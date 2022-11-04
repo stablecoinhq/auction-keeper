@@ -11,3 +11,4 @@ export { WebSocketProvider } from "./common/provider";
 export { Wallet } from "./common/wallet";
 export * from "./common/base-service.class";
 export * from "./types/ether-contracts";
+export { getLogger } from "./common/logger";

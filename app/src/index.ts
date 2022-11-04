@@ -7,13 +7,17 @@ import {
   WebSocketProvider,
   Wallet,
   BaseService,
+  getLogger,
 } from "@auction-keeper/core";
 
+const logger = getLogger();
+
 process.on("SIGINT", function () {
-  console.log("\nGracefully shutting down from SIGINT (Ctrl-C)");
+  logger.info("\nGracefully shutting down from SIGINT (Ctrl-C)");
   // some other closing procedures go here
   process.exit(0);
 });
+
 
 async function main() {
   const ENV_PATH = process.env.ENV_PATH || ".env";
@@ -32,7 +36,7 @@ async function main() {
     signer: signer,
     fromBlock: envs.FROM_BLOCK,
     toBlock: envs.TO_BLOCK,
-    dataStoreMode: "file"
+    dataStoreMode: "file",
   });
   const vatAddress = await dog.getVatAddress();
 
@@ -49,16 +53,22 @@ async function main() {
     signer,
   });
 
+  const flopperAddress = await vow.flopperAddress();
+  const debtAuction = new Auction({
+    auctionType: "debt",
+    auctionAddress: flopperAddress,
+    signer,
+  });
+
   const clipAddresses = await dog.getClipAddresses(envs.ILKS);
 
-  console.log({
-    RPC_HOST: envs.RPC_HOST,
+  logger.info(JSON.stringify({
     DOG_ADDRESS: envs.DOG_ADDRESS,
     VOW_ADDRESS: envs.VOW_ADDRESS,
     SIGNER_ADDRESS: signer.address,
     VAT_ADDRESS: vatAddress,
     CLIP_ADDRESSES: clipAddresses,
-  });
+  }, null, 1));
 
   const clips = clipAddresses.map(({ ilk, address }) => {
     return new Clip({
@@ -77,7 +87,7 @@ async function main() {
   );
 
   Promise.all(
-    [dog].map((v) => {
+    [dog, surplusAuction, debtAuction, vow].map((v) => {
       const service = v as unknown as BaseService;
       service.start();
     })
@@ -85,5 +95,5 @@ async function main() {
 }
 
 main().catch((e) => {
-  console.error(e);
+  logger.error(e);
 });

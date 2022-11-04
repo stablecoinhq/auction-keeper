@@ -109,7 +109,7 @@ export class Vow extends BaseService {
    * accordingly
    */
   private async _handleVowEvents(): Promise<void> {
-    console.log("Listening to heal events...");
+    this.logger.info("Listening to heal events...");
     const healEventFilter = this.vow.filters[
       "LogNote(bytes4,address,bytes32,bytes32,bytes)"
     ](Events.heal);
@@ -122,7 +122,7 @@ export class Vow extends BaseService {
       this._processEvent(eventTx, async () => {
         const [functionSig] = eventTx.topics;
         if (functionSig === Events.heal) {
-          console.log(`Heal event triggered, checking vow state`);
+          this.logger.info(`Heal event triggered, checking vow state`);
           this._checkVowState();
         }
       });
@@ -154,13 +154,13 @@ export class Vow extends BaseService {
             switch (event) {
               case Events.grab:
                 if (arg4 && arg4Address === vowAddressToCheck) {
-                  console.log("Grab on vow address");
+                  this.logger.info("Grab on vow address");
                   this._checkStateAndHeal();
                 }
                 break;
               case Events.frob:
                 if (arg4 && arg4Address === vowAddressToCheck) {
-                  console.log("Frob on vow address");
+                  this.logger.info("Frob on vow address");
                   this._checkStateAndHeal();
                 }
                 break;
@@ -169,13 +169,13 @@ export class Vow extends BaseService {
                   (toAddress(arg1) && toAddress(arg1) === vowAddressToCheck) ||
                   (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck)
                 ) {
-                  console.log("Move on vow address");
+                  this.logger.info("Move on vow address");
                   this._checkStateAndHeal();
                 }
                 break;
               case Events.fold:
                 if (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck) {
-                  console.log("Fold called");
+                  this.logger.info("Fold called");
                   this._checkStateAndHeal();
                 }
                 break;
@@ -184,7 +184,7 @@ export class Vow extends BaseService {
                   (toAddress(arg1) && toAddress(arg1) === vowAddressToCheck) ||
                   (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck)
                 ) {
-                  console.log("Suck on vow address");
+                  this.logger.info("Suck on vow address");
                   this._checkStateAndHeal();
                 }
                 break;
@@ -204,12 +204,12 @@ export class Vow extends BaseService {
     const vowState = await this._getVowState();
     const canFlap = Vow.canFlap(vowState);
     if (canFlap) {
-      console.log("Surplus auction can be started.");
+      this.logger.info("Surplus auction can be started.");
       await this._startSurplusAuction();
     }
     const canFlop = Vow.canFlop(vowState);
     if (canFlop) {
-      console.log("Debt auction can be started.");
+      this.logger.info("Debt auction can be started.");
       await this._startDebtAuction();
     }
 
@@ -250,8 +250,8 @@ export class Vow extends BaseService {
     const flapperEventFilter =
       flapper.filters["Kick(uint256,uint256,uint256)"]();
     flapper.on(flapperEventFilter, async (id, lot, bid) => {
-      console.log(`Surplus auction ${id} started.`);
-      console.log({
+      this.logger.info(`Surplus auction ${id} started.`);
+      this.logger.info({
         id: id.toString(),
         amount: lot.toString(),
         bid: bid.toString(),
@@ -268,8 +268,8 @@ export class Vow extends BaseService {
     const flopperEventFilter =
       flopper.filters["Kick(uint256,uint256,uint256,address)"]();
     flopper.on(flopperEventFilter, async (id, lot, bid, bidder) => {
-      console.log(`Debt auction ${id} started.`);
-      console.log({
+      this.logger.info(`Debt auction ${id} started.`);
+      this.logger.info({
         id: id.toString(),
         amount: lot.toString(),
         bidder: bidder,
@@ -282,9 +282,9 @@ export class Vow extends BaseService {
    * Start surplus auction
    */
   private async _startSurplusAuction() {
-    console.log("Starting surplus auction.");
+    this.logger.info("Starting surplus auction.");
     this.vow.flap().catch((e) => {
-      console.log(
+      this.logger.info(
         ` Surplus auction cannot be started with reason: ${e.error.reason}`
       );
     });
@@ -294,7 +294,7 @@ export class Vow extends BaseService {
    * Start debt auction
    */
   private async _startDebtAuction() {
-    console.log("Starting debt auction.");
+    this.logger.info("Starting debt auction.");
     this._submitTx(this.vow.flop());
   }
 
@@ -303,7 +303,7 @@ export class Vow extends BaseService {
    * @param healingAmount Amount to heal
    */
   private async _heal(healingAmount: BigNumber) {
-    console.log(`Healing with ${healingAmount.toString()}`);
+    this.logger.info(`Healing with ${healingAmount.toString()}`);
     this._submitTx(this.vow.heal(healingAmount));
   }
 

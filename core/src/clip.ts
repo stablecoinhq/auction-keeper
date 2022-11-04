@@ -56,30 +56,6 @@ export interface AuctionInfo {
   ended: boolean;
 }
 
-function displayAuctionInfo(auctionInfo: AuctionInfo): void {
-  const {
-    auctionId,
-    tab,
-    lot,
-    usr,
-    tic,
-    top,
-    auctionPrice: price,
-    ended: needsRedo,
-  } = auctionInfo;
-  const normalised = {
-    auctionId: auctionId.toString(),
-    vault: usr,
-    daiToRaise: tab.toString(),
-    amountBeingAuctioned: lot.toString(),
-    startingPrice: top.toString(),
-    currentPrice: price.toString(),
-    startedAt: tic.eq(0) ? 0 : new Date(tic.toNumber() * 10 ** 3),
-    ended: lot.eq(0) || needsRedo,
-  };
-  console.log(normalised);
-}
-
 // Each token has is own Clip contract so we need to instantiate them respectively
 export class Clip extends BaseService {
   readonly clip: ClipContract;
@@ -114,7 +90,7 @@ export class Clip extends BaseService {
       const [auctionId, , , , , , , eventTx] = args;
       const availableDai = await this.vat.dai(this.signer.address);
       this._processEvent(eventTx, async () => {
-        console.log(`Auction id: ${auctionId.toString()} started.`);
+        this.logger.info(`Auction id: ${auctionId.toString()} started.`);
         this._paricipateAuction(auctionId, availableDai);
       });
     });
@@ -126,7 +102,7 @@ export class Clip extends BaseService {
       const [id, , , , , , , eventTx] = args;
       this._processEvent(eventTx, async () => {
         const gem = await this.vat.gem(this.ilk, this.signer.address);
-        console.log(`Auction id ${id.toString()}, gem purchased: ${gem}`);
+        this.logger.info(`Auction id ${id.toString()}, gem purchased: ${gem}`);
       });
     });
   }
@@ -135,7 +111,7 @@ export class Clip extends BaseService {
     const ilk = await this.clip.ilk();
     const count = await this.clip.count();
     if (count.eq(0)) {
-      console.log(`No auctions available for ${ilk}`);
+      this.logger.info(`No auctions available for ${ilk}`);
     } else {
       const activeAuctionIds = await this.clip.list();
       if (activeAuctionIds) {
@@ -170,7 +146,7 @@ export class Clip extends BaseService {
       auctionPrice: price,
       ended,
     };
-    displayAuctionInfo(auctionInfo);
+    this.displayAuctionInfo(auctionInfo);
     const remaining = await this._take(auctionInfo, availableDai);
     return remaining;
   }
@@ -182,12 +158,12 @@ export class Clip extends BaseService {
   ): Promise<BigNumber> {
     const { auctionId, lot, auctionPrice, ended } = auctionInfo;
     if (ended) {
-      console.log(`Auction ${auctionId} is finished`);
+      this.logger.info(`Auction ${auctionId} is finished`);
       return availableDai;
     }
     const amountWeCanAfford = availableDai.div(auctionPrice);
     if (availableDai.lte(0) || amountWeCanAfford.lte(0)) {
-      console.log(
+      this.logger.info(
         `Address ${this.signer.address} have no available dai to participate in auction: ${availableDai}`
       );
       return availableDai;
@@ -205,10 +181,34 @@ export class Clip extends BaseService {
       )
     );
     if (result) {
-      console.log(
+      this.logger.info(
         `Bidding submitted ${result.hash}, purchasing ${amountToPurchase} at the price of ${auctionPrice}`
       );
     }
     return availableDai.sub(amountToPurchase.mul(auctionPrice));
+  }
+
+  displayAuctionInfo(auctionInfo: AuctionInfo): void {
+    const {
+      auctionId,
+      tab,
+      lot,
+      usr,
+      tic,
+      top,
+      auctionPrice: price,
+      ended: needsRedo,
+    } = auctionInfo;
+    const normalised = {
+      auctionId: auctionId.toString(),
+      vault: usr,
+      daiToRaise: tab.toString(),
+      amountBeingAuctioned: lot.toString(),
+      startingPrice: top.toString(),
+      currentPrice: price.toString(),
+      startedAt: tic.eq(0) ? 0 : new Date(tic.toNumber() * 10 ** 3),
+      ended: lot.eq(0) || needsRedo,
+    };
+    this.logger.info(normalised);
   }
 }

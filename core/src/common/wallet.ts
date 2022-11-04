@@ -9,6 +9,8 @@ import { Wallet as EtherWallet, BytesLike, Wordlist } from "ethers";
 import { Deferrable } from "ethers/lib/utils";
 import { defaultPath, HDNode } from "@ethersproject/hdnode";
 import { AsyncLock } from "./util";
+import { getLogger } from "./logger";
+import { Logger } from "winston";
 
 /**
  * Customized wallet class
@@ -17,12 +19,14 @@ import { AsyncLock } from "./util";
 export class Wallet extends EtherWallet {
   private static instance: Wallet;
   private lock: AsyncLock = new AsyncLock();
+  private logger: Logger;
   // Singleton constructor
   constructor(
     privateKey: BytesLike | ExternallyOwnedAccount | SigningKey,
     provider?: Provider
   ) {
     super(privateKey, provider);
+    this.logger = getLogger().child({ service: "wallet" });
     if (!Wallet.instance) {
       return this;
     } else {
@@ -36,7 +40,7 @@ export class Wallet extends EtherWallet {
   ): Promise<TransactionResponse> {
     return this.lock.run(async () => {
       const result = await super.sendTransaction(transaction);
-      console.log(`Transaction ${result.hash} submitted`)
+      this.logger.info(`Transaction ${result.hash} submitted`);
       return result;
     });
   }

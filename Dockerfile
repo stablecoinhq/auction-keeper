@@ -9,8 +9,7 @@ COPY tsconfig.json .
 COPY tsconfig.base.json .
 COPY core core
 COPY app app
-RUN --mount=type=cache,target=/root/.npm \
-    npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci
 RUN npm run build
 RUN npm prune --omit=dev
 
