@@ -231,8 +231,6 @@ describe("Vow", () => {
         .slice(8)
         .slice(BYTES_32 * 3)
         .slice(0, BYTES_32);
-
-      console.log(toAddress(fourthArgument));
       expect(fourthArgument).toBe(
         "00000000000000000000000056d48a77e5f302dc369f2f93e1aa86cd1f9470f2"
       );

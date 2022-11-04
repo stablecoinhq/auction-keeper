@@ -40,35 +40,6 @@ interface IlkInfo {
   dust: BigNumber;
 }
 
-function displayUrnInfo(
-  ilk: string,
-  urnAddress: string,
-  ilkInfo: IlkInfo,
-  urnInfo: UrnInfo
-) {
-  const { art, ink } = urnInfo;
-  const { rate, spot } = ilkInfo;
-  const debt = art.mul(rate);
-  const maximumAllowedDebt = ink.mul(spot);
-  const untilLiquidation = maximumAllowedDebt.sub(debt);
-  const normalized = {
-    ilk: ilk,
-    address: urnAddress,
-    spot: displayUnits(spot, unitContants.RAY),
-    ink: displayUnits(ink, unitContants.WAD),
-    art: displayUnits(art, unitContants.WAD),
-    debt: displayUnits(debt, unitContants.WAD.mul(unitContants.RAY)),
-    maximumAllowedDebt: displayUnits(
-      maximumAllowedDebt,
-      unitContants.WAD.mul(unitContants.RAY)
-    ),
-    untilLiquidation: displayUnits(
-      untilLiquidation,
-      unitContants.WAD.mul(unitContants.RAY)
-    ),
-  };
-  console.log(normalized);
-}
 
 /**
  * Split into ranges of blocks
@@ -228,11 +199,11 @@ export class Dog extends BaseService {
     const isDogLive = (await this.dog.live()).eq(1);
 
     if (!isVatLive) {
-      return console.log(`Vat ${vat.address} is not live`);
+      this.logger.warn(`Vat ${vat.address} is not live`);
     }
 
     if (!isDogLive) {
-      return console.log(`Dog ${this.dog.address} is not live`);
+      this.logger.warn(`Dog ${this.dog.address} is not live`);
     }
 
     await this._lookupFromPastEvents();
@@ -243,7 +214,7 @@ export class Dog extends BaseService {
    * Collect vault information by looking into past events
    */
   private async _lookupFromPastEvents(): Promise<void> {
-    console.log("Fetching past events...");
+    this.logger.info("Fetching past events...");
     const latestBlock =
       this.toBlock === "latest"
         ? await this.signer.provider.getBlockNumber()
@@ -254,7 +225,7 @@ export class Dog extends BaseService {
 
     let vaultCollections: VaultCollection[] = [];
     if (from <= latestBlock) {
-      console.log(
+      this.logger.info(
         `Fetching vault data from past events from: ${from}, to: ${latestBlock}`
       );
       vaultCollections = await Promise.all(
@@ -284,7 +255,7 @@ export class Dog extends BaseService {
     );
 
     barkResult.forEach(({ ilk, address }) => {
-      console.log(`Barked at ilk: ${ilk}, address: ${address}`);
+      this.logger.info(`Barked at ilk: ${ilk}, address: ${address}`);
     });
   }
 
@@ -296,7 +267,7 @@ export class Dog extends BaseService {
       return;
     }
     const vat = await this.vatContract;
-    console.log("Start listening to ongoing events...");
+    this.logger.info("Start listening to ongoing events...");
 
     [
       FunctionSigs.fold,
@@ -321,14 +292,14 @@ export class Dog extends BaseService {
           switch (event) {
             case FunctionSigs.fold:
               // Check vault that are affected by fold (Change of stability fee rate)
-              console.log(`Fee rate of ${ilk} changed, checking vaults`);
+              this.logger.debug(`Fee rate of ${ilk} changed, checking vaults`);
               const targets = await this.dataStore.getByIlk(ilk);
               this._checkVaultCollections(targets);
               break;
             case FunctionSigs.file:
               // Check vaults that are affected by spot (Change of token price)
               if (arg2 === SPOT) {
-                console.log(`Safey margin of ${ilk} changed, checking vaults`);
+                this.logger.debug(`Safey margin of ${ilk} changed, checking vaults`);
                 const targets = await this.dataStore.getByIlk(ilk);
                 this._checkVaultCollections(targets);
               }
@@ -363,10 +334,10 @@ export class Dog extends BaseService {
             const { ilk, address } = unsafeVault;
             const barkResult = await this._startCollateralAuction(ilk, address);
             if (barkResult) {
-              console.log("Bark success");
+              this.logger.info("Bark success");
               return [...result, unsafeVault];
             } else {
-              console.log("Bark was not successful");
+              this.logger.info("Bark was not successful");
               return result;
             }
           }, Promise.resolve([]) as Promise<CanBark[]>);
@@ -388,7 +359,7 @@ export class Dog extends BaseService {
     ilk: string,
     address: string
   ): Promise<ethers.ContractTransaction | undefined> {
-    console.log(`Barking at ilk: ${ilk}, address: ${address}`);
+    this.logger.info(`Barking at ilk: ${ilk}, address: ${address}`);
     return this._submitTx(this.dog.bark(ilk, address, this.signer.address));
   }
 
@@ -417,7 +388,7 @@ export class Dog extends BaseService {
     const isLiquidationLimitSafe = Hole.gt(Dirt) && dogIlk.hole.gt(dogIlk.dirt);
     // Auction has exceeded it's limit
     if (!isLiquidationLimitSafe) {
-      console.log(`Auction has reached it's capacity for ${ilk}`);
+      this.logger.debug(`Auction has reached it's capacity for ${ilk}`);
       return [];
     }
 
@@ -430,7 +401,7 @@ export class Dog extends BaseService {
     const barks = await urnAddresses.reduce(async (prev, urnAddress) => {
       const acc = await prev;
       const urnInfo = await vat.urns(ilk, urnAddress);
-      displayUrnInfo(ilk, urnAddress, vatIlkInfo, urnInfo);
+      this._displayUrnInfo(ilk, urnAddress, vatIlkInfo, urnInfo);
       const { canBark, tab } = Dog.canBark(
         Hole,
         acc.Dirt,
@@ -532,6 +503,36 @@ export class Dog extends BaseService {
       canBark,
       tab,
     };
+  }
+
+  private _displayUrnInfo(
+    ilk: string,
+    urnAddress: string,
+    ilkInfo: IlkInfo,
+    urnInfo: UrnInfo
+  ) {
+    const { art, ink } = urnInfo;
+    const { rate, spot } = ilkInfo;
+    const debt = art.mul(rate);
+    const maximumAllowedDebt = ink.mul(spot);
+    const untilLiquidation = maximumAllowedDebt.sub(debt);
+    const normalized = {
+      ilk: ilk,
+      address: urnAddress,
+      spot: displayUnits(spot, unitContants.RAY),
+      ink: displayUnits(ink, unitContants.WAD),
+      art: displayUnits(art, unitContants.WAD),
+      debt: displayUnits(debt, unitContants.WAD.mul(unitContants.RAY)),
+      maximumAllowedDebt: displayUnits(
+        maximumAllowedDebt,
+        unitContants.WAD.mul(unitContants.RAY)
+      ),
+      untilLiquidation: displayUnits(
+        untilLiquidation,
+        unitContants.WAD.mul(unitContants.RAY)
+      ),
+    };
+    this.logger.info(JSON.stringify(normalized, null, 1));
   }
 }
 

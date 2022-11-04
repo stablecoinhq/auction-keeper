@@ -117,7 +117,9 @@ export class Auction extends BaseService {
   private async _checkAuctionsOnStart() {
     // TODO: participate in multiple auctions
     const auctions = await this.getAuctionInfos();
-    console.log(auctions);
+    if (auctions) {
+      this.logger.info(JSON.stringify(auctions, null, 1));
+    }
     auctions.forEach((auction) => this._setTimerToEndAuction(auction));
     if (auctions[0]) {
       await this._bid(auctions[0]);
@@ -138,10 +140,10 @@ export class Auction extends BaseService {
       const endTime = ticTime.getTime() <= end.getTime() ? ticTime : end;
       const delta = endTime.getTime() - new Date().getTime();
       if (delta <= 0) {
-        console.log("Ending auction");
+        this.logger.info("Ending auction");
         await this._submitTx(this.contract.deal(id));
       } else {
-        console.log(`Ending auction at ${endTime}`);
+        this.logger.info(`Ending auction at ${endTime}`);
         const timerId = setTimeout(async () => {
           await this._submitTx(this.contract.deal(id));
         }, delta + BUFFER);
@@ -191,28 +193,32 @@ export class Auction extends BaseService {
         };
         await this._processEvent(eventTx, async () => {
           const auctionId = BigNumber.from(eventTx.topics.at(2));
-          console.log(`Event occured on auction ${auctionId.toString()}`);
+          this.logger.info(`Event occured on auction ${auctionId.toString()}`);
           const auctionInfo = await this.getAuctionInfoById(auctionId);
           switch (event) {
             // Auction is ended
             case FunctionSig.deal:
-              console.log(`Auction ${auctionId.toString()} ended.`);
+              this.logger.info(`Auction ${auctionId.toString()} ended.`);
               break;
             // Someone bidded on Flopper/Debt auction
             case FunctionSig.dent:
-              console.log(`Someone bidded on auction ${auctionId.toString()}`);
+              this.logger.info(
+                `Someone bidded on auction ${auctionId.toString()}`
+              );
               await this._bid(auctionInfo);
               await this._setTimerToEndAuction(auctionInfo);
               break;
             // Someone bidded on Flapper/Surplus auction
             case FunctionSig.tend:
-              console.log(`Someone bidded on auction ${auctionId.toString()}`);
+              this.logger.info(
+                `Someone bidded on auction ${auctionId.toString()}`
+              );
               await this._bid(auctionInfo);
               await this._setTimerToEndAuction(auctionInfo);
               break;
             // Auction restarted
             case FunctionSig.tick:
-              console.log(`Auction ${auctionId.toString()} restarted`);
+              this.logger.info(`Auction ${auctionId.toString()} restarted`);
               await this._bid(auctionInfo);
               break;
             default:
@@ -232,7 +238,7 @@ export class Auction extends BaseService {
         this.contract.filters["Kick(uint256,uint256,uint256,address)"]!();
       this.contract.on(eventFilter, async (id, _bid, _lot, _guy, kickEvent) => {
         this._processEvent(kickEvent, async () => {
-          console.log(`Debt auction id ${id} started`);
+          this.logger.info(`Debt auction id ${id} started`);
           const auctionInfo = await this.getAuctionInfoById(id);
           await this._bid(auctionInfo);
         });
@@ -242,7 +248,7 @@ export class Auction extends BaseService {
         this.contract.filters["Kick(uint256,uint256,uint256)"]!();
       this.contract.on(eventFilter, async (id, _bid, _lot, kickEvent) => {
         this._processEvent(kickEvent, async () => {
-          console.log(`Surplus auction id ${id} started`);
+          this.logger.info(`Surplus auction id ${id} started`);
           const auctionInfo = await this.getAuctionInfoById(id);
           await this._bid(auctionInfo);
         });

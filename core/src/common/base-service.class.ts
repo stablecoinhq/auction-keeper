@@ -2,18 +2,23 @@ import { ContractTransaction } from "ethers";
 import { AsyncLock } from "./util";
 import { Wallet } from "./wallet";
 import { WebSocketProvider } from "./provider";
+import { getLogger } from "./logger";
+import { Logger } from "winston";
 
 /**
  * Base class for all services
  */
 export abstract class BaseService {
+  protected logger: Logger;
   processedTxHashes: Set<string> = new Set();
   private lock = new AsyncLock();
 
   constructor(
     protected readonly signer: Wallet,
     private readonly contractAddress: string
-  ) {}
+  ) {
+    this.logger = getLogger().child({ service: this.constructor.name });
+  }
 
   /**
    * Register job to process when web socket is reconnected
@@ -46,10 +51,10 @@ export abstract class BaseService {
     const { transactionHash } = event;
     this.lock.run(async () => {
       if (this.processedTxHashes.has(transactionHash)) {
-        console.log(`Event ${transactionHash} already processed`);
+        this.logger.debug(`Event ${transactionHash} already processed`);
         return;
       } else {
-        console.log(`Processing event: ${transactionHash}`);
+        this.logger.debug(`Processing event: ${transactionHash}`);
         await processFunction();
         this.processedTxHashes.add(transactionHash);
       }
@@ -63,9 +68,9 @@ export abstract class BaseService {
   ): Promise<ContractTransaction | undefined> {
     const result = await txEvent.catch((e) => {
       if ("error" in e) {
-        console.log(e.error);
+        this.logger.warn(e.error);
       } else {
-        console.log(e.message);
+        this.logger.warn(e.message);
       }
       return undefined;
     });
