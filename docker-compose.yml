@@ -1,0 +1,10 @@
+version: "3.5"
+
+services:
+  auction-keeper:
+    image: auction-keeper:latest
+    environment:
+      - ENV_PATH=.env
+    volumes:
+      - ./.env:/app/.env
+      - ./database:/app/database
