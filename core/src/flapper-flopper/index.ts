@@ -118,7 +118,25 @@ export class Auction extends BaseService {
     // TODO: participate in multiple auctions
     const auctions = await this.getAuctionInfos();
     if (auctions) {
-      this.logger.info(JSON.stringify(auctions, null, 1));
+      auctions.forEach((auction) => {
+        const { id, auctionType, bid, lot, guy, price, tic, end } = auction;
+        this.logger.info(
+          JSON.stringify(
+            {
+              id: id.toString(),
+              auctionType,
+              bid: bid.toString(),
+              lot: lot.toString(),
+              guy,
+              price: price.toString(),
+              tic,
+              end,
+            },
+            null,
+            1
+          )
+        );
+      });
     }
     auctions.forEach((auction) => this._setTimerToEndAuction(auction));
     if (auctions[0]) {
