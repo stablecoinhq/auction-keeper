@@ -6,7 +6,7 @@ This application watches auction contracts
 
 - Monitor Vat contracts and initiate settlement auctions with Dog contracts if they find Vaults that need to be settled.
 - Get list of auctions that's being held, bid them is possible.
-- Listen to Vow contract and start auction if needed
+- Listen to Vow contract and start debt/surplus auction if needed
 - Bid on surplus/debt auction
 
 ## Setup
@@ -16,7 +16,7 @@ Prepare the following `.envs` files in the root of the directory
 | Key         | Value                                     |
 | ----------- | ----------------------------------------- |
 | RPC_HOST    | mysql                                     |
-| ILKS        | jdbc:mysql:                               |
+| ILKS        | ilks                                      |
 | MNEMONIC    | Mnemonic                                  |
 | FROM_BLOCK  | (For dog) Block to fetch from             |
 | TO_BLOCK    | (For dog) Block to end                    |
@@ -40,4 +40,10 @@ docker build . --target=application --tag=auction-keeper:latest
 
 ```
 docker run --rm --name=auction-keeper -v $(pwd)/.env:/app/.env auction-keeper:latest
+```
+
+### Deploying to AWS EC2 instance
+
+```
+bash scripts/deploy-keeper.sh
 ```
