@@ -1,11 +1,12 @@
-import { BigNumber, ContractTransaction, ethers } from "ethers";
+import { BigNumber, ContractTransaction } from "ethers";
 import {
   Vat,
   DS_Token,
   Flapper__factory,
   Flopper__factory,
+  DS_Token__factory,
+  Vat__factory,
 } from "../types/ether-contracts";
-import { DS_Token__factory, Vat__factory } from "../types/ether-contracts";
 import { AuctionContract } from "./auction-contract";
 import { EMPTY_ADDRESS, ONE, BEG, FunctionSig } from "./constants";
 import { BaseService } from "../common/base-service.class";
@@ -81,9 +82,13 @@ export interface AuctionConfig {
  */
 export class Auction extends BaseService {
   readonly auctionType: AuctionType;
+
   readonly vatContract: Promise<Vat>;
+
   readonly contract: AuctionContract;
+
   readonly DS_Token: Promise<DS_Token>;
+
   readonly auctionSchedulers: Map<BigNumber, NodeJS.Timeout> = new Map();
 
   constructor(config: AuctionConfig) {
@@ -138,7 +143,7 @@ export class Auction extends BaseService {
         );
       });
     }
-    auctions.forEach((auction) => this._setTimerToEndAuction(auction));
+    auctions.forEach((auction) => void this._setTimerToEndAuction(auction));
     if (auctions[0]) {
       await this._bid(auctions[0]);
     }
@@ -148,9 +153,7 @@ export class Auction extends BaseService {
     // 現在の時刻とtic, endどちらか小さい方の差分をタイマーとしたスケジューラーを起動する
     const { id, tic, end } = auction;
     // ticが0ならそもそもオークションを終了できないので何もしない
-    if (typeof tic === "number" && tic === 0) {
-      return;
-    } else {
+    if (typeof tic !== "number") {
       // Add buffer to delta
       const BUFFER = 60 * 1000;
       clearTimeout(this.auctionSchedulers.get(id));
@@ -162,8 +165,8 @@ export class Auction extends BaseService {
         await this._submitTx(this.contract.deal(id));
       } else {
         this.logger.info(`Ending auction at ${endTime}`);
-        const timerId = setTimeout(async () => {
-          await this._submitTx(this.contract.deal(id));
+        const timerId = setTimeout(() => {
+          void this._submitTx(this.contract.deal(id));
         }, delta + BUFFER);
         this.auctionSchedulers.set(id, timerId);
       }
@@ -193,7 +196,7 @@ export class Auction extends BaseService {
   /**
    * Handle `logEvent` emitted from auction contract
    */
-  private async _handleLogEvents() {
+  private _handleLogEvents() {
     [
       FunctionSig.deal,
       FunctionSig.dent,
@@ -204,12 +207,12 @@ export class Auction extends BaseService {
         this.contract.filters["LogNote(bytes4,address,bytes32,bytes32,bytes)"](
           event
         );
-      this.contract.on(eventFilter, async (strEventTx) => {
+      this.contract.on(eventFilter, (strEventTx) => {
         const eventTx = strEventTx as any as {
           transactionHash: string;
           topics: string[];
         };
-        await this._processEvent(eventTx, async () => {
+        this._processEvent(eventTx, async () => {
           const auctionId = BigNumber.from(eventTx.topics.at(2));
           this.logger.info(`Event occured on auction ${auctionId.toString()}`);
           const auctionInfo = await this.getAuctionInfoById(auctionId);
@@ -250,11 +253,11 @@ export class Auction extends BaseService {
   /**
    * Handle `Kick` event emitted from auction contract
    */
-  private async _handleKickEvents() {
+  private _handleKickEvents() {
     if (this.auctionType === AuctionType.Debt) {
       const eventFilter =
         this.contract.filters["Kick(uint256,uint256,uint256,address)"]!();
-      this.contract.on(eventFilter, async (id, _bid, _lot, _guy, kickEvent) => {
+      this.contract.on(eventFilter, (id, _bid, _lot, _guy, kickEvent) => {
         this._processEvent(kickEvent, async () => {
           this.logger.info(`Debt auction id ${id} started`);
           const auctionInfo = await this.getAuctionInfoById(id);
@@ -264,7 +267,7 @@ export class Auction extends BaseService {
     } else {
       const eventFilter =
         this.contract.filters["Kick(uint256,uint256,uint256)"]!();
-      this.contract.on(eventFilter, async (id, _bid, _lot, kickEvent) => {
+      this.contract.on(eventFilter, (id, _bid, _lot, kickEvent) => {
         this._processEvent(kickEvent, async () => {
           this.logger.info(`Surplus auction id ${id} started`);
           const auctionInfo = await this.getAuctionInfoById(id);
@@ -274,7 +277,8 @@ export class Auction extends BaseService {
     }
   }
 
-  // Surplus/Debt auctions have no reliable way of obtaining information on auctions that's being held.
+  // Surplus/Debt auctions have no reliable way of obtaining information on auctions
+  // that's being held.
   /**
    * Return list of ongoing auctions
    * @returns List on ongoing auctions
@@ -282,7 +286,7 @@ export class Auction extends BaseService {
   async getAuctionInfos(this: Auction): Promise<AuctionInfo[]> {
     const kicks = await this.contract.kicks();
     let i = kicks;
-    let auctionInfos: AuctionInfo[] = [];
+    const auctionInfos: AuctionInfo[] = [];
     while (i.gte(0)) {
       const auctionInfo = await this.getAuctionInfoById(i);
       if (i.eq(0) || Auction.isEmptyAuction(auctionInfo)) {
@@ -387,7 +391,7 @@ export class Auction extends BaseService {
     const bidEndTime = tic;
     const auctionEndTime = end;
     const auctionExpired =
-      tic.valueOf() != 0 && (bidEndTime < now || auctionEndTime < now);
+      tic.valueOf() !== 0 && (bidEndTime < now || auctionEndTime < now);
     return auctionExpired;
   }
 
@@ -480,8 +484,7 @@ export class Auction extends BaseService {
     }
     if (this.auctionType === AuctionType.Debt) {
       return this.contract.dent!(id, lotAmount, bidAmount);
-    } else {
-      return this.contract.tend!(id, lotAmount, bidAmount);
     }
+    return this.contract.tend!(id, lotAmount, bidAmount);
   }
 }

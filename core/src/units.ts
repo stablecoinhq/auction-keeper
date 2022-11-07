@@ -15,8 +15,8 @@ export const constants = {
 };
 
 export function displayUnits(num: BigNumber, decimalPlaces: BigNumber): string {
-  function toStandard(num: BigNumber, divBy: BigNumber): string {
-    return num.div(divBy).toString();
+  function toStandard(targetNum: BigNumber, divBy: BigNumber): string {
+    return targetNum.div(divBy).toString();
   }
   return toStandard(num, decimalPlaces);
 }

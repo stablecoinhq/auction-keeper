@@ -1,12 +1,11 @@
+import { BigNumber, constants, ethers } from "ethers";
 import {
   Dog as DogContract,
   Vat as VatContract,
   Vat__factory,
   Dog__factory,
 } from "../types/ether-contracts";
-import { BigNumber, constants } from "ethers";
 import { displayUnits, constants as unitContants } from "../units";
-import { ethers } from "ethers";
 import { parseEventsAndGroup, parseEventAndGroup } from "./event-parser";
 import { VaultCollection } from "./vault-collection";
 import { FunctionSigs, VOID_ADDRESS, SPOT } from "./constants";
@@ -43,22 +42,29 @@ interface IlkInfo {
 /**
  * Split into ranges of blocks
  * This is to avoid full node from throwing error when fetching past events
- * @param from Oldest block
+ * @param fromBlock Oldest block
  * @param latest Highest block
  * @returns
  */
 function splitBlocks(
-  from: number,
+  fromBlock: number,
   latest: number
 ): { from: number; to: number }[] {
   const SPLIT_BY = 10000;
-  let ls: { from: number; to: number }[] = [];
-  for (let i = from; i <= latest; i += SPLIT_BY) {
+  const ls: { from: number; to: number }[] = [];
+  for (let i = fromBlock; i <= latest; i += SPLIT_BY) {
     const from = i;
     const to = i + SPLIT_BY >= latest ? latest : i + SPLIT_BY;
     ls.push({ from, to });
   }
   return ls;
+}
+
+/**
+ * Compare two numbers, return the smaller one
+ */
+function min(a: BigNumber, b: BigNumber) {
+  return a.lte(b) ? a : b;
 }
 
 /**
@@ -102,6 +108,11 @@ export interface DogConfig {
   dataStoreMode: "memory" | "file";
 }
 
+type NewType = {
+  canBark: boolean;
+  tab: BigNumber;
+};
+
 /**
  * Service that interacts with Dog/Vat contract
  * - Listens to events emitted from Vat contract
@@ -113,14 +124,17 @@ export class Dog extends BaseService {
    * Vat contract
    */
   readonly vatContract: Promise<VatContract>;
+
   /**
    * Dog contract
    */
   readonly dog: DogContract;
+
   /**
    * Block to start from
    */
   readonly fromBlock: number;
+
   /**
    * Block to end, "latest" if you want to fetch all the events up until now
    */
@@ -131,14 +145,17 @@ export class Dog extends BaseService {
   // private vaultCollection: VaultCollection;
 
   private dataStore: DataStore;
+
   /**
    * Wallet address
    */
   readonly signerAddress: string;
+
   /**
    * Amount of DAI that's being put into collateral auction
    */
   readonly Dirt: Promise<BigNumber>;
+
   /**
    * Total amount of DAI that can be put into collateral auction
    */
@@ -206,7 +223,7 @@ export class Dog extends BaseService {
     }
 
     await this._lookupFromPastEvents();
-    this._handleEvents();
+    await this._handleEvents();
   }
 
   /**
@@ -218,29 +235,26 @@ export class Dog extends BaseService {
       this.toBlock === "latest"
         ? await this.signer.provider.getBlockNumber()
         : this.toBlock;
-    const fromBlock = await this.dataStore.getLatestBlock();
-    const from = fromBlock?.number || this.fromBlock;
-    const bunch = splitBlocks(from, latestBlock);
+    const fromBlock =
+      (await this.dataStore.getLatestBlock())?.number || this.fromBlock;
+    const bunch = splitBlocks(fromBlock, latestBlock);
 
     let vaultCollections: VaultCollection[] = [];
-    if (from <= latestBlock) {
+    if (fromBlock <= latestBlock) {
       this.logger.info(
-        `Fetching vault data from past events from: ${from}, to: ${latestBlock}`
+        `Fetching vault data from past events from: ${fromBlock}, to: ${latestBlock}`
       );
       vaultCollections = await Promise.all(
-        bunch.map(async ({ from, to }) => {
-          return [FunctionSigs.fork, FunctionSigs.frob].reduce(
-            async (prev, event) => {
-              const prevs = await prev;
-              const eventRawData = await this._getPastEvents(from, to, event);
-              const urnsByIlk = parseEventsAndGroup(eventRawData, prevs);
-              return urnsByIlk;
-            },
-            Promise.resolve(new VaultCollection())
-          );
-        })
+        bunch.map(async ({ from, to }) =>
+          [FunctionSigs.fork, FunctionSigs.frob].reduce(async (prev, event) => {
+            const prevs = await prev;
+            const eventRawData = await this._getPastEvents(from, to, event);
+            const urnsByIlk = parseEventsAndGroup(eventRawData, prevs);
+            return urnsByIlk;
+          }, Promise.resolve(new VaultCollection()))
+        )
       );
-      await this.dataStore.addBlock(latestBlock);
+      this.dataStore.addBlock(latestBlock);
     }
 
     const allVaults = await this.dataStore.getAllVaults();
@@ -249,7 +263,7 @@ export class Dog extends BaseService {
       allVaults,
     ]);
     const barkResult = await this._checkVaultCollections(toCheck);
-    await this.dataStore.addVaults(
+    this.dataStore.addVaults(
       VaultCollection.fromVaultCollections(vaultCollections)
     );
 
@@ -273,10 +287,10 @@ export class Dog extends BaseService {
       FunctionSigs.fork,
       FunctionSigs.frob,
       FunctionSigs.file,
-    ].forEach(async (event) => {
+    ].forEach((event) => {
       const eventFilter =
         vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](event);
-      vat.on(eventFilter, async (strEventTx) => {
+      vat.on(eventFilter, (strEventTx) => {
         const eventTx = strEventTx as any as {
           topics: string[];
           data: string;
@@ -286,35 +300,38 @@ export class Dog extends BaseService {
         this._processEvent(eventTx, async () => {
           const [, ilk, arg2] = eventTx.topics;
           const eventRawData = eventTx.data;
-          await this.dataStore.addBlock(eventTx.blockNumber);
+          this.dataStore.addBlock(eventTx.blockNumber);
 
           switch (event) {
-            case FunctionSigs.fold:
+            case FunctionSigs.fold: {
               // Check vault that are affected by fold (Change of stability fee rate)
               this.logger.debug(`Fee rate of ${ilk} changed, checking vaults`);
+              // eslint-disable-next-line no-case-declarations
               const targets = await this.dataStore.getByIlk(ilk);
-              this._checkVaultCollections(targets);
+              await this._checkVaultCollections(targets);
               break;
-            case FunctionSigs.file:
+            }
+            case FunctionSigs.file: {
               // Check vaults that are affected by spot (Change of token price)
               if (arg2 === SPOT) {
                 this.logger.debug(
                   `Safey margin of ${ilk} changed, checking vaults`
                 );
                 const targets = await this.dataStore.getByIlk(ilk);
-                this._checkVaultCollections(targets);
+                await this._checkVaultCollections(targets);
               }
               break;
-            default:
+            }
+            default: {
               const vaultCollection = parseEventAndGroup(eventRawData);
-              await this.dataStore.addVaults(vaultCollection);
-              this._checkVaultCollections(vaultCollection);
+              this.dataStore.addVaults(vaultCollection);
+              await this._checkVaultCollections(vaultCollection);
               break;
+            }
           }
         });
       });
     });
-    return;
   }
 
   /**
@@ -331,16 +348,15 @@ export class Dog extends BaseService {
           const addrs: string[] = Array.from(urnAddresses);
           const unsafeVaults: CanBark[] = await this._checkVaults(ilk, addrs);
           const barkResult = unsafeVaults.reduce(async (prev, unsafeVault) => {
-            const result = await prev;
-            const { ilk, address } = unsafeVault;
-            const barkResult = await this._startCollateralAuction(ilk, address);
-            if (barkResult) {
+            const prevResult = await prev;
+            const { address } = unsafeVault;
+            const res = await this._startCollateralAuction(ilk, address);
+            if (res) {
               this.logger.info("Bark success");
-              return [...result, unsafeVault];
-            } else {
-              this.logger.info("Bark was not successful");
-              return result;
+              return [...prevResult, unsafeVault];
             }
+            this.logger.info("Bark was not successful");
+            return prevResult;
           }, Promise.resolve([]) as Promise<CanBark[]>);
           return barkResult;
         }
@@ -421,9 +437,7 @@ export class Dog extends BaseService {
       };
     }, Promise.resolve(base));
 
-    return barks.urns.map((address) => {
-      return { ilk: ilk, address: address };
-    });
+    return barks.urns.map((address) => ({ ilk, address }));
   }
 
   // Retrieve events in the specified block range.
@@ -443,9 +457,7 @@ export class Dog extends BaseService {
     const eventFilter =
       vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](functionSig);
     const events = await vat.queryFilter(eventFilter, from, to);
-    const eventRawData = events.map((logNoteEvent) => {
-      return logNoteEvent.data;
-    });
+    const eventRawData = events.map((logNoteEvent) => logNoteEvent.data);
     return eventRawData;
   }
 
@@ -460,10 +472,7 @@ export class Dog extends BaseService {
     urnInfo: UrnInfo,
     vatIlkInfo: VatIlkInfo,
     dogIlk: DogIlkInfo
-  ): {
-    canBark: boolean;
-    tab: BigNumber;
-  } {
+  ): NewType {
     const { ink, art } = urnInfo;
     const { spot, rate, dust } = vatIlkInfo;
     const { hole, chop } = dogIlk;
@@ -518,7 +527,7 @@ export class Dog extends BaseService {
     const maximumAllowedDebt = ink.mul(spot);
     const untilLiquidation = maximumAllowedDebt.sub(debt);
     const normalized = {
-      ilk: ilk,
+      ilk,
       address: urnAddress,
       spot: displayUnits(spot, unitContants.RAY),
       ink: displayUnits(ink, unitContants.WAD),
@@ -535,11 +544,4 @@ export class Dog extends BaseService {
     };
     this.logger.info(JSON.stringify(normalized, null, 1));
   }
-}
-
-/**
- * Compare two numbers, return the smaller one
- */
-function min(a: BigNumber, b: BigNumber) {
-  return a.lte(b) ? a : b;
 }

@@ -1,3 +1,4 @@
+/* eslint-disable max-classes-per-file */
 import { ethers } from "ethers";
 // https://github.com/ethers-io/ethers.js/issues/1053#issuecomment-1220391512
 
@@ -11,18 +12,24 @@ const WebSocketProviderClass =
 
 export class WebSocketProvider extends WebSocketProviderClass() {
   private provider?: ethers.providers.WebSocketProvider;
+
   private events: ethers.providers.WebSocketProvider["_events"] = [];
+
   private requests: ethers.providers.WebSocketProvider["_requests"] = {};
+
   onReconnect: Map<string, () => Promise<void>> = new Map();
+
   private isReconnecting: boolean = false;
 
   // https://ja.javascript.info/proxy
   private handler = {
     get(target: WebSocketProvider, prop: string, receiver: unknown) {
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const value =
         (target.provider && Reflect.get(target.provider, prop, receiver)) ??
         Reflect.get(target, prop, receiver);
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-return
       return value instanceof Function ? value.bind(target.provider) : value;
     },
   };
@@ -31,6 +38,7 @@ export class WebSocketProvider extends WebSocketProviderClass() {
     super();
     this.create();
 
+    // eslint-disable-next-line no-constructor-return
     return new Proxy(this, this.handler);
   }
 
@@ -56,15 +64,15 @@ export class WebSocketProvider extends WebSocketProviderClass() {
         }, WEBSOCKET_PONG_TIMEOUT);
       }, WEBSOCKET_PING_INTERVAL);
 
-      let event;
-      while ((event = this.events.pop())) {
+      const event = this.events.pop();
+      while (event) {
         provider._events.push(event);
         provider._startEvent(event);
       }
 
       if (this.isReconnecting) {
         this.isReconnecting = false;
-        this.onReconnect.forEach((job) => job());
+        this.onReconnect.forEach((job) => void job());
       }
 
       for (const key in this.requests) {
@@ -94,7 +102,7 @@ export class WebSocketProvider extends WebSocketProviderClass() {
     });
 
     // Don't need to do anything, just let 'close' handle it
-    provider._websocket.on("error", (code: number) => {});
+    provider._websocket.on("error", () => {});
 
     this.provider = provider;
   }

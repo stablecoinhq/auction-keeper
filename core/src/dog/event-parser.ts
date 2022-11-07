@@ -33,7 +33,8 @@ function parseRawEventMap(
   if (functionSignature === FUNCTION_SIGNATURES.FROB) {
     const urnAddress = toAddress(context.slice(BYTES_LENGTH, BYTES_LENGTH * 2));
     return vaultCollection.addVault(ilk, urnAddress);
-  } else if (functionSignature === FUNCTION_SIGNATURES.FORK) {
+  }
+  if (functionSignature === FUNCTION_SIGNATURES.FORK) {
     const sourceAddress = toAddress(
       context.slice(BYTES_LENGTH, BYTES_LENGTH * 2)
     );
@@ -42,22 +43,12 @@ function parseRawEventMap(
     );
     if (sourceAddress === destinationAddress) {
       return vaultCollection.addVault(ilk, sourceAddress);
-    } else {
-      return vaultCollection
-        .addVault(ilk, sourceAddress)
-        .addVault(ilk, destinationAddress);
     }
-  } else {
-    return vaultCollection;
+    return vaultCollection
+      .addVault(ilk, sourceAddress)
+      .addVault(ilk, destinationAddress);
   }
-}
-
-/**
- * @param rawEvent Raw event data
- * @returns Vault collection
- */
-export function parseEventAndGroup(rawEvent: string): VaultCollection {
-  return parseEventsAndGroup([rawEvent]);
+  return vaultCollection;
 }
 
 /**
@@ -71,8 +62,17 @@ export function parseEventsAndGroup(
   vaultCollection?: VaultCollection
 ): VaultCollection {
   const v = vaultCollection || new VaultCollection();
-  const urns = rawEvents.reduce((prev, rawEvent) => {
-    return parseRawEventMap(rawEvent, prev);
-  }, v);
+  const urns = rawEvents.reduce(
+    (prev, rawEvent) => parseRawEventMap(rawEvent, prev),
+    v
+  );
   return urns;
+}
+
+/**
+ * @param rawEvent Raw event data
+ * @returns Vault collection
+ */
+export function parseEventAndGroup(rawEvent: string): VaultCollection {
+  return parseEventsAndGroup([rawEvent]);
 }

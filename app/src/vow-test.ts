@@ -1,18 +1,17 @@
-import { ethers } from "ethers";
-import { getEnvs } from "./config";
 import { Vow, Wallet, WebSocketProvider } from "@auction-keeper/core";
+import { getEnvs } from "./config";
 
-process.on("SIGINT", function () {
+const ENV_PATH = process.env.ENV_PATH || ".env";
+
+require("dotenv").config({ path: ENV_PATH });
+
+process.on("SIGINT", () => {
   console.log("\nGracefully shutting down from SIGINT (Ctrl-C)");
   // some other closing procedures go here
   process.exit(0);
 });
 
 async function main() {
-  const ENV_PATH = process.env.ENV_PATH || ".env";
-
-  require("dotenv").config({ path: ENV_PATH });
-
   const envs = getEnvs();
 
   console.log(envs);
@@ -26,7 +25,7 @@ async function main() {
     signer,
   });
 
-  vow.start();
+  await vow.start();
 }
 
 main().catch((e) => {

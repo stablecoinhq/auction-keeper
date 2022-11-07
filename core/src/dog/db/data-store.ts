@@ -1,40 +1,46 @@
+import { DataSource } from "typeorm";
 import { Block } from "./entity/block.entity";
 import { Vault } from "./entity/vault.entity";
 import { BlockRepository } from "./repository/block.repository";
 import { VaultRepository } from "./repository/vault.repository";
 import { VaultCollection, Vault as VaultInterface } from "../vault-collection";
 import "reflect-metadata";
-import { DataSource } from "typeorm";
 
 /**
  * Class used to persist blockchain data within database
  */
 export class DataStore {
   private vaultRepository!: VaultRepository;
+
   private blockRepository!: BlockRepository;
+
   private dataSource: DataSource;
 
   constructor(database: Database) {
     this.dataSource = new DataSource({
       type: "sqlite",
-      database: database,
+      database,
       synchronize: true,
       logging: false,
       entities: [Block, Vault],
       migrations: [],
       subscribers: [],
     });
-    this.dataSource.initialize().then((source) => {
-      this.vaultRepository = new VaultRepository(source);
-      this.blockRepository = new BlockRepository(source);
-    });
+    this.dataSource
+      .initialize()
+      .then((source) => {
+        this.vaultRepository = new VaultRepository(source);
+        this.blockRepository = new BlockRepository(source);
+      })
+      .catch((e) => console.log(e));
   }
 
   /**
    * Insert vault collection to database
    * @param vs VaultCollection
    */
-  async addVaults(vs: VaultCollection): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/require-await
+  addVaults(vs: VaultCollection): void {
     this.vaultRepository.addVaults(vs);
   }
 
@@ -42,8 +48,8 @@ export class DataStore {
    * Insert single vault to database
    * @param vault Vault
    */
-  async addVault(vault: VaultInterface): Promise<void> {
-    this.vaultRepository.addVault(vault);
+  addVault(vault: VaultInterface): void {
+    void this.vaultRepository.addVault(vault);
   }
 
   /**
@@ -67,8 +73,8 @@ export class DataStore {
    * Add block to database
    * @param num blockNumber
    */
-  async addBlock(num: number): Promise<void> {
-    this.blockRepository.insertBlock(num);
+  addBlock(num: number): void {
+    void this.blockRepository.insertBlock(num);
   }
 
   /**

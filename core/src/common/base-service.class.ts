@@ -1,16 +1,18 @@
 import { ContractTransaction } from "ethers";
+import { Logger } from "winston";
 import { AsyncLock } from "./util";
 import { Wallet } from "./wallet";
 import { WebSocketProvider } from "./provider";
 import { getLogger } from "./logger";
-import { Logger } from "winston";
 
 /**
  * Base class for all services
  */
 export abstract class BaseService {
   protected logger: Logger;
+
   processedTxHashes: Set<string> = new Set();
+
   private lock = new AsyncLock();
 
   constructor(
@@ -44,21 +46,22 @@ export abstract class BaseService {
 
   /** Process events
    */
-  protected async _processEvent(
+  protected _processEvent(
     event: { transactionHash: string },
     processFunction: () => Promise<void>
-  ): Promise<void> {
+  ): void {
     const { transactionHash } = event;
-    this.lock.run(async () => {
-      if (this.processedTxHashes.has(transactionHash)) {
-        this.logger.debug(`Event ${transactionHash} already processed`);
-        return;
-      } else {
-        this.logger.debug(`Processing event: ${transactionHash}`);
-        await processFunction();
-        this.processedTxHashes.add(transactionHash);
-      }
-    });
+    this.lock
+      .run(async () => {
+        if (this.processedTxHashes.has(transactionHash)) {
+          this.logger.debug(`Event ${transactionHash} already processed`);
+        } else {
+          this.logger.debug(`Processing event: ${transactionHash}`);
+          await processFunction();
+          this.processedTxHashes.add(transactionHash);
+        }
+      })
+      .catch((e) => this.logger.warn(e));
   }
 
   // Handle exceptions when exception occurs

@@ -12,6 +12,7 @@ export class VaultRepository extends Repository<Vault> {
   constructor(dataSource: DataSource) {
     super(Vault, dataSource.createEntityManager());
   }
+
   /**
    * Insert vault to database
    * @param vault Vault to add
@@ -20,12 +21,12 @@ export class VaultRepository extends Repository<Vault> {
   async addVault(vault: VaultInterface): Promise<void> {
     const { ilk, address } = vault;
     const vaultExists = await this.findOneBy({ ilk, address });
+    // eslint-disable-next-line no-empty
     if (vaultExists) {
-      return;
     } else {
       try {
-        const vault = this.create({ ilk, address });
-        await this.save(vault);
+        const newVault = this.create({ ilk, address });
+        await this.save(newVault);
       } catch (error) {
         // do something
       }
@@ -36,7 +37,7 @@ export class VaultRepository extends Repository<Vault> {
    * Insert vault collections into database
    * @param vaultCollection VaultCollection
    */
-  async addVaults(vaultCollection: VaultCollection): Promise<void> {
+  addVaults(vaultCollection: VaultCollection): void {
     Array.from(vaultCollection.vaultEntries()).map(async (vault) => {
       // TODO: Make it faster
       await this.addVault(vault);
@@ -57,6 +58,6 @@ export class VaultRepository extends Repository<Vault> {
   async getByIlk(ilk: string): Promise<VaultCollection> {
     const vaultlist = await this.findBy({ ilk });
     const vaults = new Set(vaultlist.map((v) => v.address));
-    return new VaultCollection(new Map().set(ilk, vaults));
+    return new VaultCollection(new Map<string, Set<string>>().set(ilk, vaults));
   }
 }

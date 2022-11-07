@@ -1,4 +1,4 @@
-import { BigNumber, ethers } from "ethers";
+import { BigNumber } from "ethers";
 import {
   Vow__factory,
   Vow as VowContract,
@@ -8,7 +8,6 @@ import {
   Flopper__factory,
 } from "../types/ether-contracts";
 import { Events, BYTES_32 } from "./constants";
-import "../common/base-service.class";
 import { BaseService } from "../common/base-service.class";
 import { Wallet } from "../common/wallet";
 
@@ -72,7 +71,9 @@ export interface VowState {
 
 // Surplus及びDebtオークションを開始させるBot
 // Surplus auctions can be started when debt is zero and there is sufficient surplus DAI.
-// Debt auctions can be initiated when surplus DAI is zero and there is sufficient debt within the system
+// Debt auctions can be initiated when surplus DAI is zero and there is sufficient debt
+// within the system
+
 /**
  * Service handling events emitted from Vow/Vat contract
  * - Start surplus auction
@@ -80,6 +81,7 @@ export interface VowState {
  */
 export class Vow extends BaseService {
   readonly vow: VowContract;
+
   readonly vat: VatContract;
 
   constructor(config: VowConfig) {
@@ -87,19 +89,20 @@ export class Vow extends BaseService {
     super(signer, vowAddress);
     this.vow = Vow__factory.connect(vowAddress, this.signer);
     this.vat = Vat__factory.connect(vatAddress, this.signer);
-    this.addReconnect(async () => await this._checkVowState());
+    this.addReconnect(async () => this._checkVowState());
   }
 
   async start() {
     await this._checkVowState();
-    this._handleVowEvents();
-    this._handleSurplusAuctionEvents();
-    this._handleDebtAuctionEvents();
+    void this._handleVowEvents();
+    void this._handleSurplusAuctionEvents();
+    void this._handleDebtAuctionEvents();
   }
 
   async flapperAddress() {
     return this.vow.flapper();
   }
+
   async flopperAddress() {
     return this.vow.flopper();
   }
@@ -108,12 +111,12 @@ export class Vow extends BaseService {
    * Listen to events emitted from vow contract and handle them
    * accordingly
    */
-  private async _handleVowEvents(): Promise<void> {
+  private _handleVowEvents(): void {
     this.logger.info("Listening to heal events...");
     const healEventFilter = this.vow.filters[
       "LogNote(bytes4,address,bytes32,bytes32,bytes)"
     ](Events.heal);
-    this.vow.on(healEventFilter, async (...args) => {
+    this.vow.on(healEventFilter, (...args) => {
       const [rawEvent] = args;
       const eventTx = rawEvent as any as {
         topics: string[];
@@ -122,8 +125,8 @@ export class Vow extends BaseService {
       this._processEvent(eventTx, async () => {
         const [functionSig] = eventTx.topics;
         if (functionSig === Events.heal) {
-          this.logger.info(`Heal event triggered, checking vow state`);
-          this._checkVowState();
+          this.logger.info("Heal event triggered, checking vow state");
+          await this._checkVowState();
         }
       });
     });
@@ -134,13 +137,13 @@ export class Vow extends BaseService {
     // fold(bytes32,address,int256): 2nd
     // suck(address,address,uint256): 1st and 2nd
     [Events.grab, Events.frob, Events.move, Events.fold, Events.suck].forEach(
-      async (event) => {
+      (event) => {
         const eventFilter =
           this.vat.filters["LogNote(bytes4,bytes32,bytes32,bytes32,bytes)"](
             event
           );
 
-        this.vat.on(eventFilter, async (strEventTx) => {
+        this.vat.on(eventFilter, (strEventTx) => {
           const eventTx = strEventTx as any as {
             topics: string[];
             data: string;
@@ -152,42 +155,47 @@ export class Vow extends BaseService {
             const arg4 = getArgumentFromRawData(eventTx.data, 4);
             const arg4Address = `0x${arg4.slice(24)}`;
             switch (event) {
-              case Events.grab:
+              case Events.grab: {
                 if (arg4 && arg4Address === vowAddressToCheck) {
                   this.logger.info("Grab on vow address");
-                  this._checkStateAndHeal();
+                  await this._checkStateAndHeal();
                 }
                 break;
-              case Events.frob:
+              }
+              case Events.frob: {
                 if (arg4 && arg4Address === vowAddressToCheck) {
                   this.logger.info("Frob on vow address");
-                  this._checkStateAndHeal();
+                  await this._checkStateAndHeal();
                 }
                 break;
-              case Events.move:
+              }
+              case Events.move: {
                 if (
                   (toAddress(arg1) && toAddress(arg1) === vowAddressToCheck) ||
                   (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck)
                 ) {
                   this.logger.info("Move on vow address");
-                  this._checkStateAndHeal();
+                  await this._checkStateAndHeal();
                 }
                 break;
-              case Events.fold:
+              }
+              case Events.fold: {
                 if (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck) {
                   this.logger.info("Fold called");
-                  this._checkStateAndHeal();
+                  await this._checkStateAndHeal();
                 }
                 break;
-              case Events.suck:
+              }
+              case Events.suck: {
                 if (
                   (toAddress(arg1) && toAddress(arg1) === vowAddressToCheck) ||
                   (toAddress(arg2) && toAddress(arg2) === vowAddressToCheck)
                 ) {
                   this.logger.info("Suck on vow address");
-                  this._checkStateAndHeal();
+                  await this._checkStateAndHeal();
                 }
                 break;
+              }
               default:
                 break;
             }
@@ -237,7 +245,7 @@ export class Vow extends BaseService {
       : fixedSurplusAuctionSize;
     const [healingAmount, shouldHeal] = Vow.calculateHealingAmount(vowState);
     if (shouldHeal || healingAmount.gte(minHealingAmount)) {
-      this._heal(healingAmount);
+      await this._heal(healingAmount);
     }
   }
 
@@ -249,7 +257,7 @@ export class Vow extends BaseService {
     const flapper = Flapper__factory.connect(flapperAddress, this.signer);
     const flapperEventFilter =
       flapper.filters["Kick(uint256,uint256,uint256)"]();
-    flapper.on(flapperEventFilter, async (id, lot, bid) => {
+    flapper.on(flapperEventFilter, (id, lot, bid) => {
       this.logger.info(`Surplus auction ${id} started.`);
       this.logger.info({
         id: id.toString(),
@@ -267,12 +275,12 @@ export class Vow extends BaseService {
     const flopper = Flopper__factory.connect(flopperAddress, this.signer);
     const flopperEventFilter =
       flopper.filters["Kick(uint256,uint256,uint256,address)"]();
-    flopper.on(flopperEventFilter, async (id, lot, bid, bidder) => {
+    flopper.on(flopperEventFilter, (id, lot, bid, bidder) => {
       this.logger.info(`Debt auction ${id} started.`);
       this.logger.info({
         id: id.toString(),
         amount: lot.toString(),
-        bidder: bidder,
+        bidder,
         bid: bid.toString(),
       });
     });
@@ -283,11 +291,7 @@ export class Vow extends BaseService {
    */
   private async _startSurplusAuction() {
     this.logger.info("Starting surplus auction.");
-    this.vow.flap().catch((e) => {
-      this.logger.info(
-        ` Surplus auction cannot be started with reason: ${e.error.reason}`
-      );
-    });
+    await this._submitTx(this.vow.flap());
   }
 
   /**
@@ -295,7 +299,7 @@ export class Vow extends BaseService {
    */
   private async _startDebtAuction() {
     this.logger.info("Starting debt auction.");
-    this._submitTx(this.vow.flop());
+    await this._submitTx(this.vow.flop());
   }
 
   /**
@@ -304,7 +308,7 @@ export class Vow extends BaseService {
    */
   private async _heal(healingAmount: BigNumber) {
     this.logger.info(`Healing with ${healingAmount.toString()}`);
-    this._submitTx(this.vow.heal(healingAmount));
+    await this._submitTx(this.vow.heal(healingAmount));
   }
 
   /**

@@ -10,6 +10,7 @@ export class Vault {
    */
   @PrimaryColumn()
   ilk!: string;
+
   /**
    * address
    */

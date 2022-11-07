@@ -1,7 +1,8 @@
-//https://medium.com/@chris_marois/asynchronous-locks-in-modern-javascript-8142c877baf
+// https://medium.com/@chris_marois/asynchronous-locks-in-modern-javascript-8142c877baf
 
 export class AsyncLock {
   private _promise: Promise<void>;
+
   private _disable: () => void;
 
   constructor() {
