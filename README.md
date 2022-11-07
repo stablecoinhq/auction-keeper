@@ -13,16 +13,19 @@ This application watches auction contracts
 
 Prepare the following `.envs` files in the root of the directory
 
-| Key         | Value                                     |
-| ----------- | ----------------------------------------- |
-| RPC_HOST    | mysql                                     |
-| ILKS        | ilks                                      |
-| MNEMONIC    | Mnemonic                                  |
-| FROM_BLOCK  | (For dog) Block to fetch from             |
-| TO_BLOCK    | (For dog) Block to end                    |
-| DOG_ADDRESS | Contract address of a dog contract        |
-| VOW_ADDRESS | Contract address of a vow contract        |
-| RUN_CLIP    | Flag indicate whether to participate clip |
+| Key           | Value                                             |
+| ------------- | ------------------------------------------------- |
+| RPC_HOST      | Websocket rpc url                                 |
+| ILKS          | List of ilks to participate in collateral auction |
+| MNEMONIC      | Mnemonic                                          |
+| FROM_BLOCK    | (For dog) Block to fetch from                     |
+| TO_BLOCK      | (For dog) Block to end                            |
+| DOG_ADDRESS   | Contract address of a dog contract                |
+| VOW_ADDRESS   | Contract address of a vow contract                |
+| RUN_CLIP      | Flag indicate whether to participate clip         |
+| LOG_DIR       | Log directory                                     |
+| SLACK_TOKEN   | Slack token                                       |
+| SLACK_CHANNEL | Slack channel                                     |
 
 ## Executing
 
