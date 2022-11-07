@@ -13,8 +13,7 @@
     "build": "tsc --build",
     "format": "prettier --write 'src/**/*.{js,ts,json}'",
     "eslint": "eslint src/**/*.ts",
-    "eslint:fix": "eslint src/**/*.ts --fix",
-    "lint": "npm-run-all eslint check-types"
+    "eslint:fix": "eslint src/**/*.ts --fix"
   },
   "devDependencies": {
     "@typechain/ethers-v5": "^10.1.0",
@@ -47,7 +46,7 @@
     "typeorm": "0.3.10",
     "winston": "^3.8.2"
   },
-  "description": "MakerDAO のオークションに関する操作を自動化するソフトウェア",
+  "description": "",
   "directories": {
     "test": "tests"
   },

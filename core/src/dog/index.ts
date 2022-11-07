@@ -40,7 +40,6 @@ interface IlkInfo {
   dust: BigNumber;
 }
 
-
 /**
  * Split into ranges of blocks
  * This is to avoid full node from throwing error when fetching past events
@@ -299,7 +298,9 @@ export class Dog extends BaseService {
             case FunctionSigs.file:
               // Check vaults that are affected by spot (Change of token price)
               if (arg2 === SPOT) {
-                this.logger.debug(`Safey margin of ${ilk} changed, checking vaults`);
+                this.logger.debug(
+                  `Safey margin of ${ilk} changed, checking vaults`
+                );
                 const targets = await this.dataStore.getByIlk(ilk);
                 this._checkVaultCollections(targets);
               }

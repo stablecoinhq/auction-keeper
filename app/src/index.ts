@@ -18,7 +18,6 @@ process.on("SIGINT", function () {
   process.exit(0);
 });
 
-
 async function main() {
   const ENV_PATH = process.env.ENV_PATH || ".env";
 
@@ -62,13 +61,19 @@ async function main() {
 
   const clipAddresses = await dog.getClipAddresses(envs.ILKS);
 
-  logger.info(JSON.stringify({
-    DOG_ADDRESS: envs.DOG_ADDRESS,
-    VOW_ADDRESS: envs.VOW_ADDRESS,
-    SIGNER_ADDRESS: signer.address,
-    VAT_ADDRESS: vatAddress,
-    CLIP_ADDRESSES: clipAddresses,
-  }, null, 1));
+  logger.info(
+    JSON.stringify(
+      {
+        DOG_ADDRESS: envs.DOG_ADDRESS,
+        VOW_ADDRESS: envs.VOW_ADDRESS,
+        SIGNER_ADDRESS: signer.address,
+        VAT_ADDRESS: vatAddress,
+        CLIP_ADDRESSES: clipAddresses,
+      },
+      null,
+      1
+    )
+  );
 
   const clips = clipAddresses.map(({ ilk, address }) => {
     return new Clip({

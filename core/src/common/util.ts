@@ -12,7 +12,7 @@ export class AsyncLock {
   /**
    * Run given async function with lock
    * @param job Async function to run
-   * @returns 
+   * @returns
    */
   async run<T>(job: () => Promise<T>): Promise<T> {
     await this._promise;

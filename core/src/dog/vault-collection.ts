@@ -83,7 +83,6 @@ export class VaultCollection {
     return ls.values();
   }
 
-
   static fromList(vaults: Vault[]): VaultCollection {
     const vaultCollection = new VaultCollection();
     for (const vault of vaults) {
