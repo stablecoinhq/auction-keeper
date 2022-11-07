@@ -8,26 +8,14 @@ import { getLogger } from "./logger";
 import { loadConfig } from "./config";
 
 /**
- * Send notification via slack api
- * @param msg Message to send
- */
-async function sendMessage(msg: string) {
-  loadConfig();
-  const { SLACK_TOKEN, SLACK_CHANNEL } = process.env;
-  if (SLACK_TOKEN && SLACK_CHANNEL) {
-    const web = new WebClient(process.env.SLACK_TOKEN);
-    await web.chat.postMessage({
-      channel: SLACK_CHANNEL,
-      text: msg,
-    });
-  }
-}
-
-/**
  * Base class for all services
  */
 export abstract class BaseService {
   protected logger: Logger;
+
+  protected web: WebClient | undefined;
+
+  protected channel: string | undefined;
 
   processedTxHashes: Set<string> = new Set();
 
@@ -38,6 +26,12 @@ export abstract class BaseService {
     private readonly contractAddress: string
   ) {
     this.logger = getLogger().child({ service: this.constructor.name });
+    loadConfig();
+    const { SLACK_TOKEN, SLACK_CHANNEL } = process.env;
+    if (SLACK_TOKEN && SLACK_CHANNEL) {
+      this.web = new WebClient(process.env.SLACK_TOKEN);
+      this.channel = SLACK_CHANNEL;
+    }
   }
 
   /**
@@ -60,6 +54,19 @@ export abstract class BaseService {
 
   stop() {
     this.signer.provider.removeAllListeners();
+  }
+
+  /**
+   * Send notification via slack api
+   * @param msg Message to send
+   */
+  protected async notify(msg: string): Promise<void> {
+    if (this.web && this.channel) {
+      await this.web.chat.postMessage({
+        channel: this.channel,
+        text: msg,
+      });
+    }
   }
 
   /** Process events
@@ -89,7 +96,7 @@ export abstract class BaseService {
     context: string
   ): Promise<ContractTransaction | undefined> {
     this.logger.info(`Submitting transaction for: ${context}`);
-    await sendMessage(context);
+    await this.notify(context);
     const result = await txEvent.catch((e) => {
       if ("error" in e) {
         this.logger.warn(e.error);
