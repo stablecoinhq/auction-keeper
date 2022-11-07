@@ -8,3 +8,4 @@ services:
     volumes:
       - ./.env:/app/.env
       - ./database:/app/database
+      - ./logs:/app/logs
