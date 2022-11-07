@@ -37,8 +37,6 @@ module.exports = {
     "no-restricted-syntax": "off",
     "guard-for-in": "off",
     "no-return-assign": "off",
-    "no-promise-executor-return": "off",
-    "@typescript-eslint/no-misused-promises": "off",
     "no-constructor-return": "off",
     "no-await-in-loop": "off",
   },

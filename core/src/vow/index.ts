@@ -94,9 +94,9 @@ export class Vow extends BaseService {
 
   async start() {
     await this._checkVowState();
-    void this._handleVowEvents();
-    void this._handleSurplusAuctionEvents();
-    void this._handleDebtAuctionEvents();
+    this._handleVowEvents();
+    await this._handleSurplusAuctionEvents();
+    await this._handleDebtAuctionEvents();
   }
 
   async flapperAddress() {

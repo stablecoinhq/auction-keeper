@@ -40,7 +40,7 @@ export class DataStore {
    * @param vs VaultCollection
    */
   // eslint-disable-next-line @typescript-eslint/require-await
-  addVaults(vs: VaultCollection): void {
+  async addVaults(vs: VaultCollection): Promise<void> {
     this.vaultRepository.addVaults(vs);
   }
 
@@ -48,8 +48,8 @@ export class DataStore {
    * Insert single vault to database
    * @param vault Vault
    */
-  addVault(vault: VaultInterface): void {
-    void this.vaultRepository.addVault(vault);
+  async addVault(vault: VaultInterface): Promise<void> {
+    await this.vaultRepository.addVault(vault);
   }
 
   /**

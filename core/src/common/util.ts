@@ -23,6 +23,7 @@ export class AsyncLock {
   }
 
   private _enable() {
+    // eslint-disable-next-line no-promise-executor-return
     this._promise = new Promise((resolve) => (this._disable = resolve));
   }
 }

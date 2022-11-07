@@ -87,11 +87,11 @@ export class Clip extends BaseService {
       this.clip.filters[
         "Kick(uint256,uint256,uint256,uint256,address,address,uint256)"
       ]();
-    this.clip.on(kickEventFilter, async (...args) => {
+    this.clip.on(kickEventFilter, (...args) => {
       const [auctionId, , , , , , , eventTx] = args;
-      const availableDai = await this.vat.dai(this.signer.address);
       this._processEvent(eventTx, async () => {
         this.logger.info(`Auction id: ${auctionId.toString()} started.`);
+        const availableDai = await this.vat.dai(this.signer.address);
         await this._paricipateAuction(auctionId, availableDai);
       });
     });
@@ -117,16 +117,14 @@ export class Clip extends BaseService {
       const activeAuctionIds = await this.clip.list();
       if (activeAuctionIds) {
         const availableDai = await this.vat.dai(this.signer.address);
-        activeAuctionIds
-          .reduce(async (prev, curr) => {
-            const currenDai = await prev;
-            if (currenDai.eq(0)) {
-              return currenDai;
-            }
-            const rest = await this._paricipateAuction(curr, currenDai);
-            return rest;
-          }, Promise.resolve(availableDai))
-          .finally(() => {});
+        await activeAuctionIds.reduce(async (prev, curr) => {
+          const currenDai = await prev;
+          if (currenDai.eq(0)) {
+            return currenDai;
+          }
+          const rest = await this._paricipateAuction(curr, currenDai);
+          return rest;
+        }, Promise.resolve(availableDai));
       }
     }
   }

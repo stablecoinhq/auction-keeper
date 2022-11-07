@@ -263,7 +263,7 @@ export class Dog extends BaseService {
       allVaults,
     ]);
     const barkResult = await this._checkVaultCollections(toCheck);
-    this.dataStore.addVaults(
+    await this.dataStore.addVaults(
       VaultCollection.fromVaultCollections(vaultCollections)
     );
 
@@ -324,7 +324,7 @@ export class Dog extends BaseService {
             }
             default: {
               const vaultCollection = parseEventAndGroup(eventRawData);
-              this.dataStore.addVaults(vaultCollection);
+              await this.dataStore.addVaults(vaultCollection);
               await this._checkVaultCollections(vaultCollection);
               break;
             }
