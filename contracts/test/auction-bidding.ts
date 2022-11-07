@@ -1,9 +1,11 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { ethers } from "hardhat";
 import { BigNumber } from "ethers";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
-import { forkNetwork, signer, sleep } from "../src/common";
 import { Auction, AuctionType } from "@auction-keeper/core";
+import { forkNetwork, signer, sleep } from "../src/common";
+
 const surplusAuctionAmount = BigNumber.from(
   "30000000000000000000000000000000000000000000000000"
 );
@@ -53,7 +55,7 @@ async function startAuctions() {
   await mockVat.mint(owner.address, sump);
   await mockVat.mint(addr1.address, sump);
   await mockVat.hope(flopper.address);
-  console.log(`Kick auction`);
+  console.log("Kick auction");
   console.log(`Owner address ${owner.address}`);
   // Actual auction data
   // {
@@ -84,16 +86,16 @@ async function startAuctions() {
   };
 }
 
-describe("Surplus auction", function () {
-  describe("signer", function () {
+describe("Surplus auction", () => {
+  describe("signer", () => {
     it("signer should be owner", async () => {
       const { owner } = await loadFixture(startAuctions);
       expect(owner.address).eq(signer.address);
     });
   });
   // Check that startAuctions kicks off auctions properly
-  describe("startAuctions", function () {
-    it("should start surplus auction", async function () {
+  describe("startAuctions", () => {
+    it("should start surplus auction", async () => {
       const { flapper } = await loadFixture(startAuctions);
       const auction = new Auction({
         auctionType: "surplus",
@@ -111,7 +113,7 @@ describe("Surplus auction", function () {
       expect(auctionType).eq(AuctionType.Surplus);
       expect(tic).eq(0);
     });
-    it("should start debt auction", async function () {
+    it("should start debt auction", async () => {
       const { flopper } = await loadFixture(startAuctions);
       const auction = new Auction({
         auctionType: "debt",
@@ -130,7 +132,7 @@ describe("Surplus auction", function () {
       expect(tic).eq(0);
     });
   });
-  describe("Surplus auction", function () {
+  describe("Surplus auction", () => {
     it("Should bid on surplus auction", async () => {
       const { flapper } = await loadFixture(startAuctions);
       const auction = new Auction({
@@ -138,7 +140,7 @@ describe("Surplus auction", function () {
         auctionAddress: flapper.address,
         signer,
       });
-      auction.start();
+      void auction.start();
       await sleep(3000);
       const auctionInfo = await auction.getAuctionInfoById(BigNumber.from(1));
       expect(auctionInfo.guy).eq(signer.address);
@@ -152,7 +154,7 @@ describe("Surplus auction", function () {
         auctionAddress: flapper.address,
         signer,
       });
-      auction.start();
+      void auction.start();
       await sleep(1000);
       await flapper.connect(addr1).tend(auctionId, surplusAuctionAmount, 10);
       await sleep(5000);
@@ -163,7 +165,7 @@ describe("Surplus auction", function () {
     // TODO: stop bidding on certain condition
     // TODO: end auction
   });
-  describe("Debt auction", function () {
+  describe("Debt auction", () => {
     it("Should bid on debt auction", async () => {
       const { flopper } = await loadFixture(startAuctions);
       const auction = new Auction({
@@ -171,7 +173,7 @@ describe("Surplus auction", function () {
         auctionAddress: flopper.address,
         signer,
       });
-      auction.start();
+      void auction.start();
       await sleep(1000);
       const auctionInfo = await auction.getAuctionInfoById(BigNumber.from(1));
       expect(auctionInfo.guy).eq(signer.address);
@@ -185,7 +187,7 @@ describe("Surplus auction", function () {
         auctionAddress: flopper.address,
         signer,
       });
-      auction.start();
+      void auction.start();
       await sleep(1000);
       // Someone else bidded
       await flopper

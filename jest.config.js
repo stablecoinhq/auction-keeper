@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 const corePackage = require("./core/package.json");
 

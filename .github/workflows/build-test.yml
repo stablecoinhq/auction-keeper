@@ -28,3 +28,4 @@ jobs:
          echo INFURA_API_KEY=${{ secrets.INFURA_API_KEY }} >> ./contracts/.env
          npm run test
       - run: npm run test-contracts
+      - run: npm run eslint

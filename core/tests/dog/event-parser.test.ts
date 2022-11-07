@@ -4,6 +4,40 @@ import {
   parseEventsAndGroup,
 } from "../../src/dog/event-parser";
 
+function toHex(data: string): string {
+  return `0x${data}`;
+}
+
+function toAddress(data: string): string {
+  return toHex(data.slice(24));
+}
+
+function createIlk(): string {
+  const IlkLength = 32;
+  const rand = ethers.utils.randomBytes(IlkLength);
+  return Buffer.from(rand).toString("hex");
+}
+
+function createAddress(): string {
+  const ADDR_LENGTH = 20;
+  const rand = ethers.utils.randomBytes(ADDR_LENGTH);
+  return `${"0".repeat(24)}${Buffer.from(rand).toString("hex")}`;
+}
+
+function createMessage(args?: {
+  ilk?: string;
+  address1?: string;
+  address2?: string;
+}) {
+  const prefix =
+    "0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000e0";
+  const event = "76088703";
+  const ilk = args?.ilk || createIlk();
+  const addr1 = args?.address1 || createAddress();
+  const addr2 = args?.address2 || createAddress();
+  return `${prefix}${event}${ilk}${addr1}${addr2}`;
+}
+
 describe("event-parser", () => {
   // Can parse Frob message
   test("Should parse frob message", () => {
@@ -43,8 +77,8 @@ describe("event-parser", () => {
     expect(result.size()).toBe(1);
   });
   test("Should parse multiple messages", () => {
-    let msgs: string[] = [];
-    for (let i = 0; i < 10; i++) {
+    const msgs: string[] = [];
+    for (let i = 0; i < 10; i += 1) {
       msgs.push(createMessage());
     }
     const result = parseEventsAndGroup(msgs);
@@ -52,23 +86,24 @@ describe("event-parser", () => {
   });
   // Group if the ilk is the same
   test("Should group into ilks", () => {
-    let msgs: string[] = [];
+    const msgs: string[] = [];
     const ilk = createIlk();
-    for (let i = 0; i < 10; i++) {
-      msgs.push(createMessage({ ilk: ilk }));
+    for (let i = 0; i < 10; i += 1) {
+      msgs.push(createMessage({ ilk }));
     }
     const result = parseEventsAndGroup(msgs);
     expect(result.size()).toBe(1);
-    const addresses = Array.from(result.addresses()).reduce((prev, curr) => {
-      return prev.concat(Array.from(curr));
-    }, [] as string[]);
+    const addresses = Array.from(result.addresses()).reduce(
+      (prev, curr) => prev.concat(Array.from(curr)),
+      [] as string[]
+    );
     expect(addresses.length).toBe(10);
   });
   // If the address is same but ilk is different
   test("Should record if ilk is different", () => {
-    let msgs: string[] = [];
+    const msgs: string[] = [];
     const addr = createAddress();
-    for (let i = 0; i < 10; i++) {
+    for (let i = 0; i < 10; i += 1) {
       msgs.push(createMessage({ address1: addr }));
     }
     const result = parseEventsAndGroup(msgs);
@@ -82,37 +117,3 @@ describe("createAddress()", () => {
     expect(result).toBe(true);
   });
 });
-
-function toHex(data: string): string {
-  return `0x${data}`;
-}
-
-function toAddress(data: string): string {
-  return toHex(data.slice(24));
-}
-
-function createIlk(): string {
-  const IlkLength = 32;
-  const rand = ethers.utils.randomBytes(IlkLength);
-  return Buffer.from(rand).toString("hex");
-}
-
-function createAddress(): string {
-  const ADDR_LENGTH = 20;
-  const rand = ethers.utils.randomBytes(ADDR_LENGTH);
-  return `${"0".repeat(24)}${Buffer.from(rand).toString("hex")}`;
-}
-
-function createMessage(args?: {
-  ilk?: string;
-  address1?: string;
-  address2?: string;
-}) {
-  const prefix =
-    "0x000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000e0";
-  const event = "76088703";
-  const ilk = args?.ilk || createIlk();
-  const addr1 = args?.address1 || createAddress();
-  const addr2 = args?.address2 || createAddress();
-  return `${prefix}${event}${ilk}${addr1}${addr2}`;
-}
