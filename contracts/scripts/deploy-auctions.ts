@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { ethers } from "hardhat";
 import { BigNumber } from "ethers";
 import { Commands } from "../src/common";
@@ -54,7 +55,7 @@ async function main() {
   await mockVat.mint(owner.address, sump);
   await mockVat.mint(addr1.address, sump);
   await mockVat.hope(flopper.address);
-  console.log(`Kick auction`);
+  console.log("Kick auction");
   console.log(`Owner address ${owner.address}`);
   // 過去に実際にあったオークション
   // {

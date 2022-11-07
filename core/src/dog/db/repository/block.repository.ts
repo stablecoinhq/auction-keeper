@@ -20,8 +20,8 @@ export class BlockRepository extends Repository<Block> {
       number: MoreThanOrEqual(blockNum),
     });
 
+    // eslint-disable-next-line no-empty
     if (hasBiggerBlockNum) {
-      return;
     } else {
       try {
         await this.save(block);
@@ -39,8 +39,7 @@ export class BlockRepository extends Repository<Block> {
     const [block] = await this.find({ order: { number: "DESC" }, take: 1 });
     if (block) {
       return block;
-    } else {
-      return undefined;
     }
+    return undefined;
   }
 }

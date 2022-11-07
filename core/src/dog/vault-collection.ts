@@ -1,8 +1,6 @@
-type ilk = string;
-type address = string;
 export interface Vault {
-  ilk: ilk;
-  address: address;
+  ilk: string;
+  address: string;
 }
 
 // Data structure used to store vault information
@@ -12,7 +10,7 @@ export class VaultCollection {
   constructor(vault: Map<string, Set<string>>);
   constructor();
   constructor(vault?: Map<string, Set<string>>) {
-    this._vaults = vault || new Map();
+    this._vaults = vault || new Map<string, Set<string>>();
   }
 
   // Return number of vaults stored within VaultCollection
@@ -21,7 +19,11 @@ export class VaultCollection {
   }
 
   // Add a vault
-  addVault(this: VaultCollection, ilk: ilk, address: address): VaultCollection {
+  addVault(
+    this: VaultCollection,
+    ilk: string,
+    address: string
+  ): VaultCollection {
     const addrs = this._vaults.get(ilk) || new Set();
     this._vaults.set(ilk, addrs.add(address));
     return this;
@@ -59,18 +61,18 @@ export class VaultCollection {
   }
 
   // Return list of vault addresses grouped by ilk
-  entries(): IterableIterator<[ilk, Set<address>]> {
+  entries(): IterableIterator<[string, Set<string>]> {
     return this._vaults.entries();
   }
 
   // Return all the vault addresses
-  addresses(): IterableIterator<Set<address>> {
+  addresses(): IterableIterator<Set<string>> {
     return this._vaults.values();
   }
 
   // Return list of vaults
   vaultEntries(): IterableIterator<Vault> {
-    let ls: Set<Vault> = new Set();
+    const ls: Set<Vault> = new Set();
     for (const [ilk, addrs] of this._vaults.entries()) {
       for (const address of addrs.values()) {
         const vault: Vault = {
@@ -82,7 +84,6 @@ export class VaultCollection {
     }
     return ls.values();
   }
-
 
   static fromList(vaults: Vault[]): VaultCollection {
     const vaultCollection = new VaultCollection();

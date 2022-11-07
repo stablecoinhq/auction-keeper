@@ -8,9 +8,9 @@ import { SigningKey } from "@ethersproject/signing-key";
 import { Wallet as EtherWallet, BytesLike, Wordlist } from "ethers";
 import { Deferrable } from "ethers/lib/utils";
 import { defaultPath, HDNode } from "@ethersproject/hdnode";
+import { Logger } from "winston";
 import { AsyncLock } from "./util";
 import { getLogger } from "./logger";
-import { Logger } from "winston";
 
 /**
  * Customized wallet class
@@ -18,8 +18,11 @@ import { Logger } from "winston";
  */
 export class Wallet extends EtherWallet {
   private static instance: Wallet;
+
   private lock: AsyncLock = new AsyncLock();
+
   private logger: Logger;
+
   // Singleton constructor
   constructor(
     privateKey: BytesLike | ExternallyOwnedAccount | SigningKey,
@@ -29,9 +32,8 @@ export class Wallet extends EtherWallet {
     this.logger = getLogger().child({ service: "wallet" });
     if (!Wallet.instance) {
       return this;
-    } else {
-      return Wallet.instance;
     }
+    return Wallet.instance;
   }
 
   // Use lock to make sure nonce does not overlap
@@ -54,11 +56,9 @@ export class Wallet extends EtherWallet {
     path?: string | undefined,
     wordlist?: Wordlist | undefined
   ): Wallet {
-    if (!path) {
-      path = defaultPath;
-    }
+    const keyPath = path || defaultPath;
     return new Wallet(
-      HDNode.fromMnemonic(mnemonic, undefined, wordlist).derivePath(path)
+      HDNode.fromMnemonic(mnemonic, undefined, wordlist).derivePath(keyPath)
     );
   }
 }

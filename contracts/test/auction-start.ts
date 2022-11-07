@@ -1,12 +1,5 @@
 import { expect } from "chai";
 import {
-  VAT_ADDRESS,
-  VOW_ADDRESS,
-  signer,
-  forkNetwork,
-  sleep,
-} from "../src/common";
-import {
   Clip__factory,
   Flapper__factory,
   Flopper__factory,
@@ -16,14 +9,21 @@ import {
   Vat__factory,
 } from "@auction-keeper/core";
 import { BigNumber } from "ethers";
+import {
+  VAT_ADDRESS,
+  VOW_ADDRESS,
+  signer,
+  forkNetwork,
+  sleep,
+} from "../src/common";
 
 require("dotenv").config();
 
-async function load() {
+function load() {
   const vow = new Vow({
     vatAddress: VAT_ADDRESS,
     vowAddress: VOW_ADDRESS,
-    signer: signer,
+    signer,
   });
 
   const vowContract = Vow__factory.connect(VOW_ADDRESS, signer);
@@ -44,15 +44,15 @@ async function load() {
 // Ash:                                                    0
 // dai: 1320302957743658775780635933257026780505783697347709
 // sump:  50000000000000000000000000000000000000000000000000
-describe("auction keeper", function () {
-  describe("Surplus auction", function () {
-    this.beforeEach(async () => {
-      forkNetwork(9656038);
+describe("auction keeper", () => {
+  describe("Surplus auction", () => {
+    beforeEach(async () => {
+      await forkNetwork(9656038);
     });
 
-    it("Should start surplus auction", async function () {
-      const { vow, vatContract, vowContract } = await load();
-      vow.start();
+    it("Should start surplus auction", async () => {
+      const { vow, vatContract, vowContract } = load();
+      void vow.start();
       const flapperAddress = await vow.flapperAddress();
       const flapper = Flapper__factory.connect(flapperAddress, signer);
       const before = await flapper.kicks();
@@ -74,13 +74,13 @@ describe("auction keeper", function () {
   // dai:    43182088423581837831814105867170163957827142136124
   // sump:   50000000000000000000000000000000000000000000000000
   // When the surplus dai becomes 0, the debt auction will start
-  describe("Debt auction start", function () {
-    this.beforeEach(async () => {
-      forkNetwork(9702725);
+  describe("Debt auction start", () => {
+    beforeEach(async () => {
+      await forkNetwork(9702725);
     });
-    it("Should start debt auction", async function () {
-      const { vow, vatContract } = await load();
-      vow.start();
+    it("Should start debt auction", async () => {
+      const { vow, vatContract } = load();
+      void vow.start();
       const flopperAddress = await vow.flopperAddress();
       const flopper = Flopper__factory.connect(flopperAddress, signer);
       const before = await flopper.kicks();
@@ -93,18 +93,18 @@ describe("auction keeper", function () {
     });
   });
 
-  describe("Collateral auction", function () {
-    this.beforeEach(async () => {
-      forkNetwork(12317309);
+  describe("Collateral auction", () => {
+    beforeEach(async () => {
+      await forkNetwork(12317309);
     });
 
-    it("Should start collateral auction", async function () {
+    it("Should start collateral auction", async () => {
       const dog = new Dog({
         dogAddress: "0x135954d155898D42C90D2a57824C690e0c7BEf1B",
         signer,
         fromBlock: 12316454,
         toBlock: 12317309,
-        dataStoreMode: "memory"
+        dataStoreMode: "memory",
       });
       const [{ address }] = await dog.getClipAddresses([
         "0x4c494e4b2d410000000000000000000000000000000000000000000000000000",
@@ -116,7 +116,7 @@ describe("auction keeper", function () {
         clipper.filters[
           "Kick(uint256,uint256,uint256,uint256,address,address,uint256)"
         ]();
-      clipper.on(kickEventFilter, async (after) => {
+      clipper.on(kickEventFilter, (after) => {
         expect(before).lessThan(after);
       });
       dog.stop();

@@ -10,7 +10,7 @@ export async function forkNetwork(n?: number): Promise<void> {
         blockNumber: n,
       }
     : { jsonRpcUrl: rpcURL };
-  network.provider.request({
+  await network.provider.request({
     method: "hardhat_reset",
     params: [
       {
@@ -21,6 +21,7 @@ export async function forkNetwork(n?: number): Promise<void> {
 }
 
 export function sleep(ms: number) {
+  // eslint-disable-next-line no-promise-executor-return
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
@@ -39,10 +40,10 @@ export const Units = {
   RAD: BigNumber.from(10).pow(45),
 };
 
-function ascii_to_hexa(str: string) {
-  var arr = [];
-  for (var n = 0, l = str.length; n < l; n++) {
-    var hex = Number(str.charCodeAt(n)).toString(16);
+function asciiToHexa(str: string) {
+  const arr = [];
+  for (let n = 0, l = str.length; n < l; n += 1) {
+    const hex = Number(str.charCodeAt(n)).toString(16);
     arr.push(hex);
   }
   return arr.join("");
@@ -50,7 +51,7 @@ function ascii_to_hexa(str: string) {
 
 function toHex(str: string) {
   const ARRAY_LENGTH = 64;
-  const hex = ascii_to_hexa(str);
+  const hex = asciiToHexa(str);
   const rest = "0".repeat(ARRAY_LENGTH - hex.length);
   return `0x${hex}${rest}`;
 }

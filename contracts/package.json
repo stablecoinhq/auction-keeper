@@ -20,10 +20,14 @@
   },
   "homepage": "https://github.com/stablecoinhq/auction-keeper#readme",
   "dependencies": {
-    "@auction-keeper/core": "^0.0.1"
+    "@auction-keeper/core": "^0.0.1",
+    "@nomicfoundation/hardhat-network-helpers": "^1.0.6",
+    "chai": "^4.3.6",
+    "dotenv": "^16.0.3",
+    "ethers": "^5.7.2",
+    "hardhat": "^2.12.0",
+    "@nomicfoundation/hardhat-toolbox": "^2.0.0"
   },
   "devDependencies": {
-    "@nomicfoundation/hardhat-toolbox": "^2.0.0",
-    "hardhat": "^2.12.0"
   }
 }

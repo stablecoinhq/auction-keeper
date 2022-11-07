@@ -1,7 +1,9 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { ethers } from "hardhat";
 import { BigNumber } from "ethers";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
+import { Auction } from "@auction-keeper/core";
 import {
   Commands,
   forkNetwork,
@@ -9,7 +11,7 @@ import {
   sleep,
   VOID_ADDRESS,
 } from "../src/common";
-import { Auction } from "@auction-keeper/core";
+
 const surplusAuctionAmount = BigNumber.from(
   "30000000000000000000000000000000000000000000000000"
 );
@@ -59,7 +61,7 @@ async function startAuctions() {
   await mockVat.mint(owner.address, sump);
   await mockVat.mint(addr1.address, sump);
   await mockVat.hope(flopper.address);
-  console.log(`Kick auction`);
+  console.log("Kick auction");
   console.log(`Owner address ${owner.address}`);
   // Actual auction data
   // {
@@ -92,7 +94,7 @@ async function startAuctions() {
   };
 }
 
-describe("Surplus auction", function () {
+describe("Surplus auction", () => {
   it("Should end surplus auction", async () => {
     const { flapper, auctionId } = await loadFixture(startAuctions);
     const auction = new Auction({
@@ -100,14 +102,16 @@ describe("Surplus auction", function () {
       auctionAddress: flapper.address,
       signer,
     });
-    auction.start();
+    void auction.start();
     // let the keeper time to bid
     await sleep(3000);
     // mine the block so that the auction can end
     await ethers.provider.send("evm_increaseTime", [20]);
     await ethers.provider.send("evm_mine", []);
     await sleep(5000);
-    const auctionInfo = await auction.getAuctionInfoById(BigNumber.from(auctionId));
+    const auctionInfo = await auction.getAuctionInfoById(
+      BigNumber.from(auctionId)
+    );
     expect(auctionInfo.guy).eq(VOID_ADDRESS);
     auction.stop();
   });
@@ -119,13 +123,15 @@ describe("Surplus auction", function () {
       auctionAddress: flapper.address,
       signer,
     });
-    auction.start();
+    void auction.start();
     await sleep(1000);
     await flapper.connect(addr1).tend(auctionId, surplusAuctionAmount, 10);
     await ethers.provider.send("evm_increaseTime", [30]);
     await ethers.provider.send("evm_mine", []);
     await sleep(5000);
-    const auctionInfo = await auction.getAuctionInfoById(BigNumber.from(auctionId));
+    const auctionInfo = await auction.getAuctionInfoById(
+      BigNumber.from(auctionId)
+    );
     expect(auctionInfo.guy).eq(VOID_ADDRESS);
     auction.stop();
   });

@@ -1,4 +1,4 @@
-import { BigNumber, ethers } from "ethers";
+import { BigNumber } from "ethers";
 import { BaseService } from "./common/base-service.class";
 import {
   Clip as ClipContract,
@@ -59,7 +59,9 @@ export interface AuctionInfo {
 // Each token has is own Clip contract so we need to instantiate them respectively
 export class Clip extends BaseService {
   readonly clip: ClipContract;
+
   readonly vat: VatContract;
+
   readonly ilk: string;
 
   constructor(args: ClipConfig) {
@@ -71,13 +73,12 @@ export class Clip extends BaseService {
     this.addReconnect(() => this._participate());
   }
 
-  async hope() {
+  async hope(): Promise<undefined> {
     const allowed = await this.vat.can(this.signer.address, this.clip.address);
     if (allowed.eq(1)) {
       return;
-    } else {
-      this.vat.hope(this.clip.address);
     }
+    await this.vat.hope(this.clip.address);
   }
 
   async start() {
@@ -86,19 +87,19 @@ export class Clip extends BaseService {
       this.clip.filters[
         "Kick(uint256,uint256,uint256,uint256,address,address,uint256)"
       ]();
-    this.clip.on(kickEventFilter, async (...args) => {
+    this.clip.on(kickEventFilter, (...args) => {
       const [auctionId, , , , , , , eventTx] = args;
-      const availableDai = await this.vat.dai(this.signer.address);
       this._processEvent(eventTx, async () => {
         this.logger.info(`Auction id: ${auctionId.toString()} started.`);
-        this._paricipateAuction(auctionId, availableDai);
+        const availableDai = await this.vat.dai(this.signer.address);
+        await this._paricipateAuction(auctionId, availableDai);
       });
     });
     const takeEventFilter =
       this.clip.filters[
         "Take(uint256,uint256,uint256,uint256,uint256,uint256,address)"
       ]();
-    this.clip.on(takeEventFilter, async (...args) => {
+    this.clip.on(takeEventFilter, (...args) => {
       const [id, , , , , , , eventTx] = args;
       this._processEvent(eventTx, async () => {
         const gem = await this.vat.gem(this.ilk, this.signer.address);
@@ -116,14 +117,13 @@ export class Clip extends BaseService {
       const activeAuctionIds = await this.clip.list();
       if (activeAuctionIds) {
         const availableDai = await this.vat.dai(this.signer.address);
-        activeAuctionIds.reduce(async (prev, curr) => {
+        await activeAuctionIds.reduce(async (prev, curr) => {
           const currenDai = await prev;
           if (currenDai.eq(0)) {
             return currenDai;
-          } else {
-            const rest = await this._paricipateAuction(curr, currenDai);
-            return rest;
           }
+          const rest = await this._paricipateAuction(curr, currenDai);
+          return rest;
         }, Promise.resolve(availableDai));
       }
     }

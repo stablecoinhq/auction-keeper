@@ -1,5 +1,5 @@
-import { Dog } from "../../src";
 import { BigNumber } from "ethers";
+import { Dog } from "../../src";
 
 describe("Dog", () => {
   describe("canBark", () => {

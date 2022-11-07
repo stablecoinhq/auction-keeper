@@ -1,4 +1,3 @@
-import { getEnvs } from "./config";
 import {
   Dog,
   Clip,
@@ -9,21 +8,20 @@ import {
   BaseService,
   getLogger,
 } from "@auction-keeper/core";
+import { getEnvs } from "./config";
+
+const ENV_PATH = process.env.ENV_PATH || ".env";
+require("dotenv").config({ path: ENV_PATH });
 
 const logger = getLogger();
 
-process.on("SIGINT", function () {
+process.on("SIGINT", () => {
   logger.info("\nGracefully shutting down from SIGINT (Ctrl-C)");
   // some other closing procedures go here
   process.exit(0);
 });
 
-
 async function main() {
-  const ENV_PATH = process.env.ENV_PATH || ".env";
-
-  require("dotenv").config({ path: ENV_PATH });
-
   const envs = getEnvs();
 
   // singletonにする
@@ -33,7 +31,7 @@ async function main() {
   const signer = Wallet.fromMnemonic(envs.MNEMONIC).connect(provider);
   const dog = new Dog({
     dogAddress: envs.DOG_ADDRESS,
-    signer: signer,
+    signer,
     fromBlock: envs.FROM_BLOCK,
     toBlock: envs.TO_BLOCK,
     dataStoreMode: "file",
@@ -42,7 +40,7 @@ async function main() {
 
   const vow = new Vow({
     vowAddress: envs.VOW_ADDRESS,
-    vatAddress: vatAddress,
+    vatAddress,
     signer,
   });
 
@@ -62,34 +60,41 @@ async function main() {
 
   const clipAddresses = await dog.getClipAddresses(envs.ILKS);
 
-  logger.info(JSON.stringify({
-    DOG_ADDRESS: envs.DOG_ADDRESS,
-    VOW_ADDRESS: envs.VOW_ADDRESS,
-    SIGNER_ADDRESS: signer.address,
-    VAT_ADDRESS: vatAddress,
-    CLIP_ADDRESSES: clipAddresses,
-  }, null, 1));
+  logger.info(
+    JSON.stringify(
+      {
+        DOG_ADDRESS: envs.DOG_ADDRESS,
+        VOW_ADDRESS: envs.VOW_ADDRESS,
+        SIGNER_ADDRESS: signer.address,
+        VAT_ADDRESS: vatAddress,
+        CLIP_ADDRESSES: clipAddresses,
+      },
+      null,
+      1
+    )
+  );
 
-  const clips = clipAddresses.map(({ ilk, address }) => {
-    return new Clip({
-      clipAddress: address,
-      vatAddress: vatAddress,
-      ilk: ilk,
-      signer: signer,
-    });
-  });
+  const clips = clipAddresses.map(
+    ({ ilk, address }) =>
+      new Clip({
+        clipAddress: address,
+        vatAddress,
+        ilk,
+        signer,
+      })
+  );
 
   // これは事前にやっておく必要がある
   await Promise.all(
     clips.map(async (clip) => {
-      clip.hope();
+      await clip.hope().catch((e) => console.log(e));
     })
   );
 
-  Promise.all(
-    [dog, surplusAuction, debtAuction, vow].map((v) => {
+  await Promise.all(
+    [dog, surplusAuction, debtAuction, vow].map(async (v) => {
       const service = v as unknown as BaseService;
-      service.start();
+      await service.start();
     })
   );
 }
