@@ -1,9 +1,27 @@
 import { ContractTransaction } from "ethers";
 import { Logger } from "winston";
+import { WebClient } from "@slack/web-api";
 import { AsyncLock } from "./util";
 import { Wallet } from "./wallet";
 import { WebSocketProvider } from "./provider";
 import { getLogger } from "./logger";
+import { loadConfig } from "./config";
+
+/**
+ * Send notification via slack api
+ * @param msg Message to send
+ */
+async function sendMessage(msg: string) {
+  loadConfig();
+  const { SLACK_TOKEN, SLACK_CHANNEL } = process.env;
+  if (SLACK_TOKEN && SLACK_CHANNEL) {
+    const web = new WebClient(process.env.SLACK_TOKEN);
+    await web.chat.postMessage({
+      channel: SLACK_CHANNEL,
+      text: msg,
+    });
+  }
+}
 
 /**
  * Base class for all services
@@ -71,6 +89,7 @@ export abstract class BaseService {
     context: string
   ): Promise<ContractTransaction | undefined> {
     this.logger.info(`Submitting transaction for: ${context}`);
+    await sendMessage(context);
     const result = await txEvent.catch((e) => {
       if ("error" in e) {
         this.logger.warn(e.error);

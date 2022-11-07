@@ -183,7 +183,7 @@ export class Auction extends BaseService {
     if (canSpend.eq(0)) {
       await this._submitTx(
         vat.hope(this.contract.address),
-        `hope to ${this.contract.address}`
+        `Hope to ${this.auctionType} auction contract: ${this.contract.address}`
       );
     }
     const mkr = await this.DS_Token;
@@ -194,7 +194,7 @@ export class Auction extends BaseService {
     if (allowance.lte(0)) {
       await this._submitTx(
         mkr["approve(address)"](this.contract.address),
-        `approve ${this.contract.address}`
+        `Approve to ${this.auctionType} auction contract: ${this.contract.address}`
       );
     }
   }
