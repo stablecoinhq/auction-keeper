@@ -7,11 +7,11 @@ import {
   Wallet,
   BaseService,
   getLogger,
+  loadConfig,
 } from "@auction-keeper/core";
 import { getEnvs } from "./config";
 
-const ENV_PATH = process.env.ENV_PATH || ".env";
-require("dotenv").config({ path: ENV_PATH });
+loadConfig();
 
 const logger = getLogger();
 

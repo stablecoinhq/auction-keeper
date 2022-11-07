@@ -259,11 +259,11 @@ export class Vow extends BaseService {
       flapper.filters["Kick(uint256,uint256,uint256)"]();
     flapper.on(flapperEventFilter, (id, lot, bid) => {
       this.logger.info(`Surplus auction ${id} started.`);
-      this.logger.info({
+      this.logger.info(JSON.stringify({
         id: id.toString(),
         amount: lot.toString(),
         bid: bid.toString(),
-      });
+      }), null, 1);
     });
   }
 
