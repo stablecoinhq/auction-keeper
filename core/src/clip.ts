@@ -178,7 +178,8 @@ export class Clip extends BaseService {
         auctionPrice,
         this.signer.address,
         []
-      )
+      ),
+      `Bidding on collateral auction ${auctionId}, with price ${auctionPrice}`
     );
     if (result) {
       this.logger.info(

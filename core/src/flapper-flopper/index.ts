@@ -162,11 +162,11 @@ export class Auction extends BaseService {
       const delta = endTime.getTime() - new Date().getTime();
       if (delta <= 0) {
         this.logger.info("Ending auction");
-        await this._submitTx(this.contract.deal(id));
+        await this._submitTx(this.contract.deal(id), `End auction ${id}`);
       } else {
         this.logger.info(`Ending auction at ${endTime}`);
         const timerId = setTimeout(() => {
-          void this._submitTx(this.contract.deal(id));
+          void this._submitTx(this.contract.deal(id), `End auction ${id}`);
         }, delta + BUFFER);
         this.auctionSchedulers.set(id, timerId);
       }
@@ -181,7 +181,10 @@ export class Auction extends BaseService {
     const vat = await this.vatContract;
     const canSpend = await vat.can(this.signer.address, this.contract.address);
     if (canSpend.eq(0)) {
-      await this._submitTx(vat.hope(this.contract.address));
+      await this._submitTx(
+        vat.hope(this.contract.address),
+        `hope to ${this.contract.address}`
+      );
     }
     const mkr = await this.DS_Token;
     const allowance = await mkr.allowance(
@@ -189,7 +192,10 @@ export class Auction extends BaseService {
       this.contract.address
     );
     if (allowance.lte(0)) {
-      await this._submitTx(mkr["approve(address)"](this.contract.address));
+      await this._submitTx(
+        mkr["approve(address)"](this.contract.address),
+        `approve ${this.contract.address}`
+      );
     }
   }
 
@@ -403,7 +409,10 @@ export class Auction extends BaseService {
     this: Auction,
     auction: AuctionInfo
   ): Promise<ContractTransaction | undefined> {
-    return this._submitTx(this.bid(auction));
+    return this._submitTx(
+      this.bid(auction),
+      `Bidding on ${auction.auctionType} auction ${auction.id}`
+    );
   }
 
   /**

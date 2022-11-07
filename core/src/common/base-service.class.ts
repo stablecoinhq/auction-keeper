@@ -67,8 +67,10 @@ export abstract class BaseService {
   // Handle exceptions when exception occurs
   // TODO: store db, send message via slack
   protected async _submitTx(
-    txEvent: Promise<ContractTransaction | undefined>
+    txEvent: Promise<ContractTransaction | undefined>,
+    context: string
   ): Promise<ContractTransaction | undefined> {
+    this.logger.info(`Submitting transaction for: ${context}`);
     const result = await txEvent.catch((e) => {
       if ("error" in e) {
         this.logger.warn(e.error);
