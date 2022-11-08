@@ -259,11 +259,15 @@ export class Vow extends BaseService {
       flapper.filters["Kick(uint256,uint256,uint256)"]();
     flapper.on(flapperEventFilter, (id, lot, bid) => {
       this.logger.info(`Surplus auction ${id} started.`);
-      this.logger.info(JSON.stringify({
-        id: id.toString(),
-        amount: lot.toString(),
-        bid: bid.toString(),
-      }), null, 1);
+      this.logger.info(
+        JSON.stringify({
+          id: id.toString(),
+          amount: lot.toString(),
+          bid: bid.toString(),
+        }),
+        null,
+        1
+      );
     });
   }
 
@@ -277,12 +281,18 @@ export class Vow extends BaseService {
       flopper.filters["Kick(uint256,uint256,uint256,address)"]();
     flopper.on(flopperEventFilter, (id, lot, bid, bidder) => {
       this.logger.info(`Debt auction ${id} started.`);
-      this.logger.info({
-        id: id.toString(),
-        amount: lot.toString(),
-        bidder,
-        bid: bid.toString(),
-      });
+      this.logger.info(
+        JSON.stringify(
+          {
+            id: id.toString(),
+            amount: lot.toString(),
+            bidder,
+            bid: bid.toString(),
+          },
+          null,
+          1
+        )
+      );
     });
   }
 

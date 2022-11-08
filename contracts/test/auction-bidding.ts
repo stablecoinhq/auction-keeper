@@ -159,7 +159,7 @@ describe("Surplus auction", () => {
       await flapper.connect(addr1).tend(auctionId, surplusAuctionAmount, 10);
       await sleep(5000);
       const auctionInfo = await auction.getAuctionInfoById(BigNumber.from(1));
-      expect(auctionInfo.guy).eq(signer.address);
+      expect(auctionInfo.guy).eq(addr1.address);
       auction.stop();
     });
     // TODO: stop bidding on certain condition
@@ -195,7 +195,7 @@ describe("Surplus auction", () => {
         .dent(auctionId, BigNumber.from("200000000000000000000"), sump);
       await sleep(5000);
       const auctionInfo = await auction.getAuctionInfoById(BigNumber.from(1));
-      expect(auctionInfo.guy).eq(signer.address);
+      expect(auctionInfo.guy).eq(addr1.address);
       auction.stop();
     });
     // TODO: stop bidding on certain condition

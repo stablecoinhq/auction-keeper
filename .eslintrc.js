@@ -39,5 +39,6 @@ module.exports = {
     "no-return-assign": "off",
     "no-constructor-return": "off",
     "no-await-in-loop": "off",
+    "@typescript-eslint/no-unused-vars": "off"
   },
 };
