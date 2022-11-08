@@ -56,7 +56,20 @@ export interface AuctionInfo {
   ended: boolean;
 }
 
-// Each token has is own Clip contract so we need to instantiate them respectively
+/**
+ * - Participate collateral auction
+ * - Each token has is own Clip contract so we need to instantiate them respectively
+ *
+ * If you want to customise the bidding strategy, extend this class and override the bid function.
+ *
+ *```
+ * class MyClip extends Clip {
+ *   protected override async bid(this: Clip, auctionInfo: AuctionInfo, availableDai: BigNumber):
+ *     Promise<ContractTransaction | undefined>
+ *       { // override with your own bidding strategy }
+ * }
+ *```
+ */
 export class Clip extends BaseService {
   readonly clip: ClipContract;
 
@@ -147,12 +160,18 @@ export class Clip extends BaseService {
       ended,
     };
     this.displayAuctionInfo(auctionInfo);
-    const remaining = await this._take(auctionInfo, availableDai);
+    const remaining = await this.bid(auctionInfo, availableDai);
     return remaining;
   }
 
-  // 入札する
-  private async _take(
+  /**
+   * Bid on collateral auction
+   * @param auctionInfo Auction info
+   * @param availableDai Available dai
+   * @returns
+   */
+  protected async bid(
+    this: Clip,
     auctionInfo: AuctionInfo,
     availableDai: BigNumber
   ): Promise<BigNumber> {

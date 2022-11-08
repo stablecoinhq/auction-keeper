@@ -69,7 +69,6 @@ export interface VowState {
   unbackedDai: BigNumber;
 }
 
-// Surplus及びDebtオークションを開始させるBot
 // Surplus auctions can be started when debt is zero and there is sufficient surplus DAI.
 // Debt auctions can be initiated when surplus DAI is zero and there is sufficient debt
 // within the system
@@ -260,13 +259,15 @@ export class Vow extends BaseService {
     flapper.on(flapperEventFilter, (id, lot, bid) => {
       this.logger.info(`Surplus auction ${id} started.`);
       this.logger.info(
-        JSON.stringify({
-          id: id.toString(),
-          amount: lot.toString(),
-          bid: bid.toString(),
-        }),
-        null,
-        1
+        JSON.stringify(
+          {
+            id: id.toString(),
+            amount: lot.toString(),
+            bid: bid.toString(),
+          },
+          null,
+          1
+        )
       );
     });
   }

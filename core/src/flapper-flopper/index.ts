@@ -79,7 +79,7 @@ export interface AuctionConfig {
  * - End auction
  * - Listen to events emitted from auction contract and take actions accordingly.
  *
- * If you want to customise the bidding method, extend this class and override the bid function.
+ * If you want to customise the bidding strategy, extend this class and override the bid function.
  *
  *```
  * class MyAuction extends Auction {

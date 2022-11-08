@@ -146,7 +146,7 @@ describe("Surplus auction", () => {
       expect(auctionInfo.guy).eq(signer.address);
       auction.stop();
     });
-    it("Should over bid on surplus auction", async () => {
+    it("Should not out bid on surplus auction", async () => {
       const { flapper, auctionId } = await loadFixture(startAuctions);
       const [, addr1] = await ethers.getSigners();
       const auction = new Auction({
@@ -179,7 +179,7 @@ describe("Surplus auction", () => {
       expect(auctionInfo.guy).eq(signer.address);
       auction.stop();
     });
-    it("Should out bid on debt auctions", async () => {
+    it("Should not out bid on debt auctions", async () => {
       const { flopper, auctionId } = await loadFixture(startAuctions);
       const [, addr1] = await ethers.getSigners();
       const auction = new Auction({
