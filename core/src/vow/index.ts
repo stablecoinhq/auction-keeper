@@ -259,11 +259,11 @@ export class Vow extends BaseService {
       flapper.filters["Kick(uint256,uint256,uint256)"]();
     flapper.on(flapperEventFilter, (id, lot, bid) => {
       this.logger.info(`Surplus auction ${id} started.`);
-      this.logger.info({
+      this.logger.info(JSON.stringify({
         id: id.toString(),
         amount: lot.toString(),
         bid: bid.toString(),
-      });
+      }), null, 1);
     });
   }
 
@@ -290,16 +290,14 @@ export class Vow extends BaseService {
    * Start surplus auction
    */
   private async _startSurplusAuction() {
-    this.logger.info("Starting surplus auction.");
-    await this._submitTx(this.vow.flap());
+    await this._submitTx(this.vow.flap(), "Starting surplus auction.");
   }
 
   /**
    * Start debt auction
    */
   private async _startDebtAuction() {
-    this.logger.info("Starting debt auction.");
-    await this._submitTx(this.vow.flop());
+    await this._submitTx(this.vow.flop(), "Starting debt auction.");
   }
 
   /**
@@ -307,8 +305,10 @@ export class Vow extends BaseService {
    * @param healingAmount Amount to heal
    */
   private async _heal(healingAmount: BigNumber) {
-    this.logger.info(`Healing with ${healingAmount.toString()}`);
-    await this._submitTx(this.vow.heal(healingAmount));
+    await this._submitTx(
+      this.vow.heal(healingAmount),
+      `Healing with ${healingAmount.toString()}`
+    );
   }
 
   /**

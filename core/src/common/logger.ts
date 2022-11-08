@@ -1,9 +1,8 @@
 import * as winston from "winston";
 import path from "path";
+import { loadConfig } from "./config";
 
-// TODO: Refactor
-const ENV_PATH = process.env.ENV_PATH || ".env";
-require("dotenv").config({ path: ENV_PATH });
+loadConfig();
 
 const { LOG_DIR } = process.env;
 

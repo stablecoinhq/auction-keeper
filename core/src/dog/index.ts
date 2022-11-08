@@ -376,8 +376,10 @@ export class Dog extends BaseService {
     ilk: string,
     address: string
   ): Promise<ethers.ContractTransaction | undefined> {
-    this.logger.info(`Barking at ilk: ${ilk}, address: ${address}`);
-    return this._submitTx(this.dog.bark(ilk, address, this.signer.address));
+    return this._submitTx(
+      this.dog.bark(ilk, address, this.signer.address),
+      `Barking at ilk: ${ilk}, address: ${address}`
+    );
   }
 
   /**

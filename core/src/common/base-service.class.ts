@@ -1,15 +1,21 @@
 import { ContractTransaction } from "ethers";
 import { Logger } from "winston";
+import { WebClient } from "@slack/web-api";
 import { AsyncLock } from "./util";
 import { Wallet } from "./wallet";
 import { WebSocketProvider } from "./provider";
 import { getLogger } from "./logger";
+import { loadConfig } from "./config";
 
 /**
  * Base class for all services
  */
 export abstract class BaseService {
   protected logger: Logger;
+
+  protected web: WebClient | undefined;
+
+  protected channel: string | undefined;
 
   processedTxHashes: Set<string> = new Set();
 
@@ -20,6 +26,12 @@ export abstract class BaseService {
     private readonly contractAddress: string
   ) {
     this.logger = getLogger().child({ service: this.constructor.name });
+    loadConfig();
+    const { SLACK_TOKEN, SLACK_CHANNEL } = process.env;
+    if (SLACK_TOKEN && SLACK_CHANNEL) {
+      this.web = new WebClient(process.env.SLACK_TOKEN);
+      this.channel = SLACK_CHANNEL;
+    }
   }
 
   /**
@@ -42,6 +54,19 @@ export abstract class BaseService {
 
   stop() {
     this.signer.provider.removeAllListeners();
+  }
+
+  /**
+   * Send notification via slack api
+   * @param msg Message to send
+   */
+  protected async notify(msg: string): Promise<void> {
+    if (this.web && this.channel) {
+      await this.web.chat.postMessage({
+        channel: this.channel,
+        text: msg,
+      });
+    }
   }
 
   /** Process events
@@ -67,8 +92,11 @@ export abstract class BaseService {
   // Handle exceptions when exception occurs
   // TODO: store db, send message via slack
   protected async _submitTx(
-    txEvent: Promise<ContractTransaction | undefined>
+    txEvent: Promise<ContractTransaction | undefined>,
+    context: string
   ): Promise<ContractTransaction | undefined> {
+    this.logger.info(`Submitting transaction for: ${context}`);
+    await this.notify(context);
     const result = await txEvent.catch((e) => {
       if ("error" in e) {
         this.logger.warn(e.error);

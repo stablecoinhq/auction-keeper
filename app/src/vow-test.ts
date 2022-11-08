@@ -1,9 +1,7 @@
-import { Vow, Wallet, WebSocketProvider } from "@auction-keeper/core";
+import { Vow, Wallet, WebSocketProvider, loadConfig } from "@auction-keeper/core";
 import { getEnvs } from "./config";
 
-const ENV_PATH = process.env.ENV_PATH || ".env";
-
-require("dotenv").config({ path: ENV_PATH });
+loadConfig();
 
 process.on("SIGINT", () => {
   console.log("\nGracefully shutting down from SIGINT (Ctrl-C)");
