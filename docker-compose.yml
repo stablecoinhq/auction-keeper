@@ -2,6 +2,9 @@ version: "3.5"
 
 services:
   auction-keeper:
+    build:
+      context: .
+      target: application
     image: auction-keeper:latest
     environment:
       - ENV_PATH=.env
