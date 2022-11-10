@@ -117,6 +117,7 @@ export class Vow extends BaseService {
     ](Events.heal);
     this.vow.on(healEventFilter, (...args) => {
       const [rawEvent] = args;
+      console.log(rawEvent);
       const eventTx = rawEvent as any as {
         topics: string[];
         transactionHash: string;
