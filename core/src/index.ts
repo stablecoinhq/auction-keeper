@@ -1,7 +1,7 @@
 /* tslint:disable */
 /* eslint-disable */
 export { Dog, DogConfig } from "./dog";
-export { Clip, ClipConfig } from "./clip";
+export { Clip, ClipConfig, CollateralAuctionInfo } from "./clip";
 export { Vow, VowState as VowStatus, VowConfig } from "./vow";
 export {
   Auction,

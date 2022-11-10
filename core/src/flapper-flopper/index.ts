@@ -1,4 +1,4 @@
-import { BigNumber, ContractTransaction } from "ethers";
+import { BigNumber, BigNumberish, ContractTransaction } from "ethers";
 import {
   Vat,
   DS_Token,
@@ -74,10 +74,20 @@ export interface AuctionConfig {
 
 /**
  * Auction class. Main roles are
- * - Get list of ongoing auctions
- * - Bid on an auction
+ * - Acquire list of ongoing auctions
+ * - Bid on surplus/debt auction
  * - End auction
+ * - Listen to events emitted from auction contract and take actions accordingly.
  *
+ * If you want to customise the bidding strategy, extend this class and override the bid function.
+ *
+ *```
+ * class MyAuction extends Auction {
+ *   protected override async bid(this: Auction, auctionInfo: AuctionInfo):
+ *     Promise<ContractTransaction | undefined>
+ *       { // override with your own bidding strategy }
+ * }
+ *```
  * This service cannot start an auction (That's up to Vow)
  */
 export class Auction extends BaseService {
@@ -158,7 +168,7 @@ export class Auction extends BaseService {
       const BUFFER = 60 * 1000;
       clearTimeout(this.auctionSchedulers.get(id));
       const ticTime = typeof tic === "number" ? new Date(tic) : tic;
-      const endTime = ticTime.getTime() <= end.getTime() ? ticTime : end;
+      const endTime = end.getTime() <= ticTime.getTime() ? end : ticTime;
       const delta = endTime.getTime() - new Date().getTime();
       if (delta <= 0) {
         this.logger.info("Ending auction");
@@ -415,21 +425,32 @@ export class Auction extends BaseService {
     );
   }
 
+  async submitBid(id: BigNumberish, lot: BigNumber, bid: BigNumber) {
+    if (this.auctionType === AuctionType.Debt) {
+      return this._submitTx(
+        this.contract.dent!(id, lot, bid),
+        `bidding on debt auction ${id}`
+      );
+    }
+    return this._submitTx(
+      this.contract.tend!(id, lot, bid),
+      `bidding on surplus auction ${id}`
+    );
+  }
+
   /**
-   * Bid against an auction
-   * @param id Auction ID
+   * Bid against an auction.Ï
+   * @param auctionInfo Auction info
    */
-  async bid(
+  protected async bid(
     this: Auction,
     auctionInfo: AuctionInfo
-  ): Promise<ContractTransaction | undefined>;
-  async bid(
-    this: Auction,
-    auctionInfo: AuctionInfo,
-    lot?: BigNumber,
-    bid?: BigNumber
   ): Promise<ContractTransaction | undefined> {
-    const { id } = auctionInfo;
+    const { id, tic } = auctionInfo;
+
+    if (typeof tic !== "number") {
+      throw new Error(`Someone already bidded on ${id}`);
+    }
 
     // Highest bidder is us
     if (auctionInfo.guy === this.signer.address) {
@@ -437,6 +458,19 @@ export class Auction extends BaseService {
         `Keeper ${this.signer.address} already bidded on auction ${id}`
       );
     }
+
+    const { bid, lot, balance } =
+      this.auctionType === AuctionType.Debt
+        ? {
+            bid: auctionInfo.bid, // Bid is fixed on debt auctions
+            lot: auctionInfo.price,
+            balance: await this.getDaiBalance(),
+          }
+        : {
+            bid: auctionInfo.price,
+            lot: auctionInfo.lot, // Lot is fixed on surplus auctions
+            balance: await this.getMkrBalance(),
+          };
 
     if (
       Auction.isAuctionExpired(auctionInfo) ||
@@ -465,35 +499,26 @@ export class Auction extends BaseService {
       );
     }
 
-    const { bidAmount, lotAmount, balance } =
-      this.auctionType === AuctionType.Debt
-        ? {
-            bidAmount: auctionInfo.bid, // Bid is unchanged on debt auctions
-            lotAmount: lot || auctionInfo.price,
-            balance: await this.getDaiBalance(),
-          }
-        : {
-            bidAmount: bid || auctionInfo.price,
-            lotAmount: auctionInfo.lot, // Lot is unchanged on surplus auctions
-            balance: await this.getMkrBalance(),
-          };
+    this.logger.info(
+      JSON.stringify(
+        {
+          guy: this.signer.address,
+          auctionType: this.auctionType,
+          bid: bid.toString(),
+          lot: lot.toString(),
+          balance: balance.toString(),
+        },
+        null,
+        1
+      )
+    );
 
-    console.table({
-      guy: this.signer.address,
-      auctionType: this.auctionType,
-      bid: bidAmount.toString(),
-      lot: lotAmount.toString(),
-      balance: balance.toString(),
-    });
-
-    if (balance.lt(bidAmount)) {
+    if (balance.lt(bid)) {
       throw new Error(
-        `Insufficient balance to participate auction. Current balance: ${balance}, bid: ${bidAmount}`
+        `Insufficient balance to participate auction. Current balance: ${balance}, bid: ${bid}`
       );
     }
-    if (this.auctionType === AuctionType.Debt) {
-      return this.contract.dent!(id, lotAmount, bidAmount);
-    }
-    return this.contract.tend!(id, lotAmount, bidAmount);
+
+    return this.submitBid(id, lot, bid);
   }
 }

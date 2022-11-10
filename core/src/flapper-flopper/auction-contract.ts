@@ -3,6 +3,7 @@ import {
   ContractTransaction,
   BytesLike,
   BaseContract,
+  BigNumberish,
 } from "ethers";
 import type { PromiseOrValue, OnEvent } from "../types/ether-contracts/common";
 import {
@@ -39,7 +40,7 @@ export interface AuctionContract extends BaseContract {
    * (Only surplus) bid on a auction
    */
   tend?: (
-    n: BigNumber,
+    n: BigNumberish,
     lot: BigNumber,
     bid: BigNumber
   ) => Promise<ContractTransaction>;
@@ -48,7 +49,7 @@ export interface AuctionContract extends BaseContract {
    * (Only debt) bid on a auction
    */
   dent?: (
-    n: BigNumber,
+    n: BigNumberish,
     lot: BigNumber,
     bid: BigNumber
   ) => Promise<ContractTransaction>;

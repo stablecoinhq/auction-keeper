@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { ContractTransaction } from "ethers";
 import { Logger } from "winston";
 import { WebClient } from "@slack/web-api";
@@ -22,7 +23,7 @@ export abstract class BaseService {
   private lock = new AsyncLock();
 
   constructor(
-    protected readonly signer: Wallet,
+    readonly signer: Wallet,
     private readonly contractAddress: string
   ) {
     this.logger = getLogger().child({ service: this.constructor.name });
@@ -97,7 +98,7 @@ export abstract class BaseService {
   ): Promise<ContractTransaction | undefined> {
     this.logger.info(`Submitting transaction for: ${context}`);
     await this.notify(context);
-    const result = await txEvent.catch((e) => {
+    return txEvent.catch((e) => {
       if ("error" in e) {
         this.logger.warn(e.error);
       } else {
@@ -105,6 +106,5 @@ export abstract class BaseService {
       }
       return undefined;
     });
-    return result;
   }
 }
