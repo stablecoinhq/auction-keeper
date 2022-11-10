@@ -1,4 +1,4 @@
-import { BigNumber } from "ethers";
+import { BigNumber, BigNumberish } from "ethers";
 import { BaseService } from "./common/base-service.class";
 import {
   Clip as ClipContract,
@@ -21,7 +21,7 @@ export interface ClipConfig {
 /**
  * Auction information
  */
-export interface AuctionInfo {
+export interface CollateralAuctionInfo {
   /**
    * Auction id
    */
@@ -149,7 +149,7 @@ export class Clip extends BaseService {
     const { tic, top, tab, lot, usr } = await this.clip.sales(auctionId);
     const { needsRedo, price } = await this.clip.getStatus(auctionId);
     const ended = lot.eq(0) || needsRedo;
-    const auctionInfo: AuctionInfo = {
+    const auctionInfo: CollateralAuctionInfo = {
       auctionId,
       tic,
       top,
@@ -165,14 +165,15 @@ export class Clip extends BaseService {
   }
 
   /**
-   * Bid on collateral auction
+   * Bid on collateral auction. This function should return the remaining DAI balance in order to
+   * participate in multiple auctions.
    * @param auctionInfo Auction info
    * @param availableDai Available dai
    * @returns
    */
   protected async bid(
     this: Clip,
-    auctionInfo: AuctionInfo,
+    auctionInfo: CollateralAuctionInfo,
     availableDai: BigNumber
   ): Promise<BigNumber> {
     const { auctionId, lot, auctionPrice, ended } = auctionInfo;
@@ -190,25 +191,30 @@ export class Clip extends BaseService {
     const amountToPurchase = amountWeCanAfford.lt(lot)
       ? amountWeCanAfford
       : lot;
-    const result = await this._submitTx(
-      this.clip.take(
-        auctionId,
-        amountToPurchase,
-        auctionPrice,
-        this.signer.address,
-        []
-      ),
-      `Bidding on collateral auction ${auctionId}, with price ${auctionPrice}`
+    return this.submitBid(
+      auctionId,
+      availableDai,
+      amountToPurchase,
+      auctionPrice,
+      this.signer.address
     );
-    if (result) {
-      this.logger.info(
-        `Bidding submitted ${result.hash}, purchasing ${amountToPurchase} at the price of ${auctionPrice}`
-      );
-    }
+  }
+
+  async submitBid(
+    id: BigNumberish,
+    availableDai: BigNumber,
+    amountToPurchase: BigNumber,
+    auctionPrice: BigNumber,
+    receiver: string
+  ) {
+    await this._submitTx(
+      this.clip.take(id, amountToPurchase, auctionPrice, receiver, []),
+      `Bidding on collateral auction ${id}, with price ${auctionPrice}`
+    );
     return availableDai.sub(amountToPurchase.mul(auctionPrice));
   }
 
-  displayAuctionInfo(auctionInfo: AuctionInfo): void {
+  displayAuctionInfo(auctionInfo: CollateralAuctionInfo): void {
     const {
       auctionId,
       tab,

@@ -40,7 +40,7 @@ describe("Vow", () => {
           "500000000000000000000000000000000000000000000000000"
         ),
       };
-      const [healingAmount, shouldHeal] =
+      const { healingAmount, shouldHeal } =
         Vow.calculateHealingAmount(surplusVowStatus);
 
       expect(healingAmount).toEqual(
@@ -77,7 +77,7 @@ describe("Vow", () => {
           "500000000000000000000000000000000000000000000000000"
         ),
       };
-      const [healingAmount, shouldHeal] =
+      const { healingAmount, shouldHeal } =
         Vow.calculateHealingAmount(surplusVowStatus);
 
       expect(healingAmount).toEqual(BigNumber.from("1"));
@@ -113,7 +113,7 @@ describe("Vow", () => {
           "500000000000000000000000000000000000000000000000000"
         ),
       };
-      const [healingAmount, shouldHeal] =
+      const { healingAmount, shouldHeal } =
         Vow.calculateHealingAmount(surplusVowStatus);
       expect(healingAmount).toEqual(BigNumber.from("0"));
       expect(shouldHeal).toBe(false);
@@ -147,7 +147,7 @@ describe("Vow", () => {
           "500000000000000000000000000000000000000000000000000"
         ),
       };
-      const [healingAmount, shouldHeal] =
+      const { healingAmount, shouldHeal } =
         Vow.calculateHealingAmount(debtVowStatus);
       expect(healingAmount).toEqual(
         BigNumber.from("43182088423581837831814105867170163957827142136124")
@@ -182,7 +182,7 @@ describe("Vow", () => {
           "500000000000000000000000000000000000000000000000000"
         ),
       };
-      const [healingAmount, shouldHeal] =
+      const { healingAmount, shouldHeal } =
         Vow.calculateHealingAmount(debtVowStatus);
       expect(healingAmount).toEqual(BigNumber.from("1"));
       expect(shouldHeal).toEqual(true);
@@ -214,7 +214,7 @@ describe("Vow", () => {
           "500000000000000000000000000000000000000000000000000"
         ),
       };
-      const [healingAmount, shouldHeal] =
+      const { healingAmount, shouldHeal } =
         Vow.calculateHealingAmount(debtVowStatus);
       expect(healingAmount).toEqual(BigNumber.from("0"));
       expect(shouldHeal).toEqual(false);

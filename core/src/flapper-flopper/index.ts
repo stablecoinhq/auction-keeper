@@ -1,4 +1,4 @@
-import { BigNumber, ContractTransaction } from "ethers";
+import { BigNumber, BigNumberish, ContractTransaction } from "ethers";
 import {
   Vat,
   DS_Token,
@@ -425,6 +425,19 @@ export class Auction extends BaseService {
     );
   }
 
+  async submitBid(id: BigNumberish, lot: BigNumber, bid: BigNumber) {
+    if (this.auctionType === AuctionType.Debt) {
+      return this._submitTx(
+        this.contract.dent!(id, lot, bid),
+        `bidding on debt auction ${id}`
+      );
+    }
+    return this._submitTx(
+      this.contract.tend!(id, lot, bid),
+      `bidding on surplus auction ${id}`
+    );
+  }
+
   /**
    * Bid against an auction.Ï
    * @param auctionInfo Auction info
@@ -505,9 +518,7 @@ export class Auction extends BaseService {
         `Insufficient balance to participate auction. Current balance: ${balance}, bid: ${bid}`
       );
     }
-    if (this.auctionType === AuctionType.Debt) {
-      return this.contract.dent!(id, lot, bid);
-    }
-    return this.contract.tend!(id, lot, bid);
+
+    return this.submitBid(id, lot, bid);
   }
 }

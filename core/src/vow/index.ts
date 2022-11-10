@@ -70,8 +70,8 @@ export interface VowState {
 }
 
 // Surplus auctions can be started when debt is zero and there is sufficient surplus DAI.
-// Debt auctions can be initiated when surplus DAI is zero and there is sufficient debt
-// within the system
+// Debt auctions can be initiated when surplus DAI is zero and there is the sufficient debt
+// within the system.For collateral auction, you can override it like so:
 
 /**
  * Service handling events emitted from Vow/Vat contract
@@ -224,7 +224,7 @@ export class Vow extends BaseService {
     const minHealingAmount = fixedDebtAuctionSize.lt(fixedSurplusAuctionSize)
       ? fixedDebtAuctionSize
       : fixedSurplusAuctionSize;
-    const [healingAmount, shouldHeal] = Vow.calculateHealingAmount(vowState);
+    const { healingAmount, shouldHeal } = Vow.calculateHealingAmount(vowState);
     if (
       healingAmount.gt(0) &&
       (shouldHeal || healingAmount.gte(minHealingAmount))
@@ -242,7 +242,7 @@ export class Vow extends BaseService {
     const minHealingAmount = fixedDebtAuctionSize.lt(fixedSurplusAuctionSize)
       ? fixedDebtAuctionSize
       : fixedSurplusAuctionSize;
-    const [healingAmount, shouldHeal] = Vow.calculateHealingAmount(vowState);
+    const { healingAmount, shouldHeal } = Vow.calculateHealingAmount(vowState);
     if (shouldHeal || healingAmount.gte(minHealingAmount)) {
       await this._heal(healingAmount);
     }
@@ -415,7 +415,10 @@ export class Vow extends BaseService {
    * @param vowState State of vow contract
    * @returns
    */
-  static calculateHealingAmount(vowState: VowState): [BigNumber, boolean] {
+  static calculateHealingAmount(vowState: VowState): {
+    healingAmount: BigNumber;
+    shouldHeal: boolean;
+  } {
     const {
       fixedSurplusAuctionSize,
       auctionSizeBuffer,
@@ -430,7 +433,7 @@ export class Vow extends BaseService {
 
     // If the debt or the surplus is 0, return [0, false]
     if (remainingDebt.lte(0) || availableDai.lte(0)) {
-      return [BigNumber.from(0), false];
+      return { healingAmount: BigNumber.from(0), shouldHeal: false };
     }
 
     const healingAmount = availableDai.gt(remainingDebt)
@@ -449,7 +452,7 @@ export class Vow extends BaseService {
     const canFlop = Vow.canFlop(vowStateAfterHeal);
     const canFlap = Vow.canFlap(vowStateAfterHeal);
 
-    return [healingAmount, canFlap || canFlop];
+    return { healingAmount, shouldHeal: canFlap || canFlop };
   }
 
   static displayVowState(vowState: VowState) {
