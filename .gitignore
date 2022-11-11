@@ -12,3 +12,4 @@ artifacts
 database
 logs
 .artifacts
+.env.test

@@ -26,6 +26,12 @@ export interface ChiefConfig {
   toBlock: number | "latest";
 }
 
+/**
+ * Chief is responsible for
+ * 1. Lifting spell
+ * 2. Scheduling spell
+ * 3. Executing scheduled spell
+ */
 export class Chief extends BaseService {
   readonly chief: ChiefContract;
 
@@ -59,9 +65,9 @@ export class Chief extends BaseService {
     this._handlePauseEvents();
   }
 
-  // 過去のEtchイベントを取得する
-  // dbに格納する
-  // そのslateからspell address一覧を取得して
+  /**
+   * Fetch past etch events
+   */
   private async _lookupFromPastEvents() {
     this.logger.info("Fetching past events...");
     const latestBlock =
@@ -108,6 +114,9 @@ export class Chief extends BaseService {
     return eventRawData;
   }
 
+  /**
+   * Handle events emitted from chief contract
+   */
   private _handleChiefEvents() {
     [
       FunctionSigs.free,
@@ -169,6 +178,9 @@ export class Chief extends BaseService {
     });
   }
 
+  /**
+   * Handle events emitted from ds-pause
+   */
   private _handlePauseEvents() {
     const eventFilter = this.pause.filters[
       "LogNote(bytes4,address,bytes32,bytes32,uint256,bytes)"
@@ -191,6 +203,22 @@ export class Chief extends BaseService {
     });
   }
 
+  /**
+   * Handle Etch event from chief
+   */
+  private _handleEtchEvent() {
+    const eventFilter = this.chief.filters["Etch(bytes32)"]();
+    this.chief.on(eventFilter, (etch, eventTx) => {
+      this._processEvent(eventTx, async () => {
+        await this._checkAddressCanBeLifted(etch);
+      });
+    });
+  }
+
+  /**
+   * Get list of addresses associated with given etch, then check whether any of them can be lifted
+   * @param etch etch
+   */
   private async _checkAddressCanBeLifted(etch: string) {
     const addresses = await this.getAddressesByEtch(etch);
     this.slates.set(etch, addresses);
@@ -217,6 +245,9 @@ export class Chief extends BaseService {
     }
   }
 
+  /**
+   * Check all addresses to see if any of them can be lifted
+   */
   private async _checkAllAddresses() {
     let spellWithApproval = {
       address: VOID_ADDRESS,
@@ -243,6 +274,9 @@ export class Chief extends BaseService {
     }
   }
 
+  /**
+   * Schedule a spell
+   */
   private async _scheduleSpell() {
     const hat = await this.chief.hat();
     this.logger.info(`Scheduling spell ${hat} to execute`);
@@ -268,6 +302,9 @@ export class Chief extends BaseService {
     }
   }
 
+  /**
+   * Set time on executable spell
+   */
   private async _executeSpell(address: string) {
     const BUFFER = 60 * 1000;
     if (!this.schedulers.has(address)) {
@@ -297,15 +334,6 @@ export class Chief extends BaseService {
         }
       }
     }
-  }
-
-  private _handleEtchEvent() {
-    const eventFilter = this.chief.filters["Etch(bytes32)"]();
-    this.chief.on(eventFilter, (etch, eventTx) => {
-      this._processEvent(eventTx, async () => {
-        await this._checkAddressCanBeLifted(etch);
-      });
-    });
   }
 
   async getAddressesByEtch(etch: string): Promise<Set<string>> {

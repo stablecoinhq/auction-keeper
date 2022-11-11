@@ -35,7 +35,7 @@ export class AsyncLock {
  * @param latest Highest block
  * @returns
  */
- export function splitBlocks(
+export function splitBlocks(
   fromBlock: number,
   latest: number
 ): { from: number; to: number }[] {

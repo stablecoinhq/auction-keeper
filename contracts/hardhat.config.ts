@@ -11,7 +11,7 @@ const config: HardhatUserConfig = {
       forking: {
         url: `https://goerli.infura.io/v3/${process.env.INFURA_API_KEY!}`,
       },
-      accounts: { mnemonic: process.env.MNEMONIC! },
+      // accounts: { mnemonic: process.env.MNEMONIC! },
     },
   },
 };
