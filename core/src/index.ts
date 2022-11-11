@@ -15,3 +15,4 @@ export * from "./common/base-service.class";
 export * from "./types/ether-contracts";
 export { getLogger } from "./common/logger";
 export { loadConfig } from "./common/config";
+export { Chief, ChiefConfig } from "./chief";

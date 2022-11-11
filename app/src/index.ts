@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import {
   Dog,
   Clip,
@@ -8,6 +9,7 @@ import {
   BaseService,
   getLogger,
   loadConfig,
+  Chief,
 } from "@auction-keeper/core";
 import { getEnvs } from "./config";
 
@@ -42,6 +44,12 @@ async function main() {
     vowAddress: envs.VOW_ADDRESS,
     vatAddress,
     signer,
+  });
+
+  const chief = new Chief({
+    chiefAddress: envs.CHIEF_ADDRESS,
+    pauseAddress: envs.DS_PAUSE_ADDRESS,
+    signer
   });
 
   const flapperAddress = await vow.flapperAddress();
@@ -84,15 +92,8 @@ async function main() {
       })
   );
 
-  // これは事前にやっておく必要がある
   await Promise.all(
-    clips.map(async (clip) => {
-      await clip.hope().catch((e) => console.log(e));
-    })
-  );
-
-  await Promise.all(
-    [dog, surplusAuction, debtAuction, vow].map(async (v) => {
+    [chief].map(async (v) => {
       const service = v as unknown as BaseService;
       await service.start();
     })

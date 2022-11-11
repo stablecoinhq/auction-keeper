@@ -20,6 +20,7 @@ export interface ChiefConfig {
   pauseAddress: string;
   signer: Wallet;
 }
+
 export class Chief extends BaseService {
   readonly chief: ChiefContract;
 
@@ -37,8 +38,9 @@ export class Chief extends BaseService {
   }
 
   async start(): Promise<void> {
+    this.logger.info("Starting chief");
     this._handleChiefEvents();
-    this._handleEtch();
+    this._handleEtchEvent();
     this._handlePauseEvents();
   }
 
@@ -52,7 +54,6 @@ export class Chief extends BaseService {
       FunctionSigs.free,
       FunctionSigs.lift,
       FunctionSigs.lock,
-      FunctionSigs.voteByAddresses,
       FunctionSigs.voteBySlate,
     ].forEach((functionSig) => {
       const eventFilter =
@@ -73,27 +74,32 @@ export class Chief extends BaseService {
             // You have to run through all the spell addresses in order to find out
             // who is the hat.
             case FunctionSigs.free:
-              await this._checkAllSpells();
+              this.logger.info(`Address ${eventTx.address} freed some votes`);
+              await this._checkAllAddresses();
               break;
             // Get the value of msg.sender
             // Then lookup who the user is voting for
             case FunctionSigs.lock: {
+              this.logger.info(`Address ${eventTx.address} added some votes`);
               const etch = await this.chief.votes(eventTx.address);
-              await this._checkSpellCanBeLifted(etch);
+              await this._checkAddressCanBeLifted(etch);
               break;
             }
             // vote
             // First argument is an etch, so get the list of spell addresses for that etch and
-            // check whether the approve of each spell address is greater than hat.
-            case FunctionSigs.voteByAddresses:
+            // check whether the approval of each spell address is greater than of the hat.
             case FunctionSigs.voteBySlate: {
               const [, etch] = eventTx.topics;
-              await this._checkSpellCanBeLifted(etch);
+              this.logger.info(
+                `Address ${eventTx.address} voted on slate ${etch}`
+              );
+              await this._checkAddressCanBeLifted(etch);
               break;
             }
 
             // When lift is emitted, schedule spell
             case FunctionSigs.lift:
+              this.logger.info("Hat was lifted, scheduling spell");
               await this._scheduleSpell();
               break;
             default:
@@ -118,68 +124,79 @@ export class Chief extends BaseService {
         address: string;
       };
       this._processEvent(eventTx, async () => {
-        // The one who calls plot is the DssExec contract
-        await this._executeSpell(eventTx.address);
+        // 1st argument of plot() is spell address
+        const [, addressArg] = eventTx.topics;
+        const address = `0x${addressArg.slice(26)}`;
+        await this._executeSpell(address);
       });
     });
   }
 
-  private async _checkSpellCanBeLifted(etch: string) {
-    const spellAddresses = await this.getSpellAddressesByEtch(etch);
+  private async _checkAddressCanBeLifted(etch: string) {
+    const addresses = await this.getAddressesByEtch(etch);
+    this.slates.set(etch, addresses);
     let spellWithApproval = {
-      spellAddress: "0x",
+      address: "0x0000000000000000000000000000000000000000",
       approval: BigNumber.from(0),
     };
-    for (const spellAddress of spellAddresses.values()) {
-      const approval = await this.chief.approvals(spellAddress);
+    for (const address of addresses.values()) {
+      const approval = await this.chief.approvals(address);
       if (approval.gte(spellWithApproval.approval)) {
-        spellWithApproval = { spellAddress, approval };
+        spellWithApproval = { address, approval };
       }
     }
     const hat = await this.chief.hat();
     const hatApproval = await this.chief.approvals(hat);
     if (spellWithApproval.approval.gt(hatApproval)) {
-      await this.chief.lift(spellWithApproval.spellAddress);
+      await this._submitTx(
+        this.chief.lift(spellWithApproval.address),
+        `Lifting address ${spellWithApproval.address} as hat`
+      );
     }
   }
 
-  private async _checkAllSpells() {
+  private async _checkAllAddresses() {
     let spellWithApproval = {
-      spellAddress: "0x",
+      address: "0x0000000000000000000000000000000000000000",
       approval: BigNumber.from(0),
     };
-    for (const spellAddresses of this.slates.values()) {
-      for (const spellAddress of spellAddresses.values()) {
-        const approval = await this.chief.approvals(spellAddress);
+    for (const addresses of this.slates.values()) {
+      for (const address of addresses.values()) {
+        const approval = await this.chief.approvals(address);
         if (approval.gte(spellWithApproval.approval)) {
-          spellWithApproval = { spellAddress, approval };
+          spellWithApproval = { address, approval };
         }
       }
     }
     const hat = await this.chief.hat();
     const hatApproval = await this.chief.approvals(hat);
     if (spellWithApproval.approval.gt(hatApproval)) {
-      await this.chief.lift(spellWithApproval.spellAddress);
+      await this._submitTx(
+        this.chief.lift(spellWithApproval.address),
+        `Lifting address ${spellWithApproval.address} as hat`
+      );
     }
   }
 
   private async _scheduleSpell() {
     const hat = await this.chief.hat();
+    this.logger.info(`scheduling address ${hat}`);
     const spell = DssExec__factory.connect(hat, this.signer);
     // hat could could be some random adress
     try {
       const done = await spell.done();
       const eta = await spell.eta();
-      if (!done && eta.gt(0)) {
+      if (!done && eta.lte(0)) {
         const result = await this._submitTx(
           spell.schedule(),
           `Scheduling spell ${spell.address}`
         );
         return result;
       }
+      this.logger.info(`Spell ${hat} is already scheduled`);
       return undefined;
     } catch {
-      console.log(`hat ${hat} is not a spell therefore cannot be executed`);
+      this.logger.warn(`hat ${hat} is not a spell therefore cannot be executed`);
       return undefined;
     }
   }
@@ -189,49 +206,49 @@ export class Chief extends BaseService {
     if (!this.schedulers.has(address)) {
       const spell = DssExec__factory.connect(address, this.signer);
       const nextCastTime = await spell.nextCastTime();
-      const now = Math.floor(new Date().getTime() / 10 ** 3);
-      const delta = nextCastTime.toNumber() - now;
+      const now = new Date().getTime();
+      const delta = nextCastTime.toNumber() * 1000 - now;
+      this.logger.debug(`Delta ${delta}`);
       if (delta <= 0) {
-        await spell.cast();
+        const timerId = setTimeout(() => {
+          void this._submitTx(spell.cast(), `Executing spell ${spell.address}`);
+        }, BUFFER);
+        this.schedulers.set(address, timerId);
       } else {
         const timerId = setTimeout(() => {
-          void spell.cast();
-        }, delta * (10 ** 3) + BUFFER);
+          void this._submitTx(spell.cast(), `Executing spell ${spell.address}`);
+        }, delta + BUFFER);
         this.schedulers.set(address, timerId);
       }
     }
   }
 
-  private _handleEtch() {
+  private _handleEtchEvent() {
     const eventFilter = this.chief.filters.Etch();
     this.chief.on(eventFilter, (etch, eventTx) => {
       this._processEvent(eventTx, async () => {
-        const spells = await this.getSpellAddressesByEtch(etch);
-        this.slates.set(etch, spells);
+        await this._checkAddressCanBeLifted(etch);
       });
     });
   }
 
-  async getSpellAddressesByEtch(etch: string): Promise<Set<string>> {
-    const spellAddresses: Set<string> = new Set();
+  async getAddressesByEtch(etch: string): Promise<Set<string>> {
+    const addresses: Set<string> = new Set();
     if (etch === VOID) {
-      return spellAddresses;
+      return addresses;
     }
     let i = 0;
     let keepGoing = true;
     while (keepGoing) {
-      const spellAddress = await this.chief.slates(etch, i).catch(() => {
-        console.log(`Slate ${i} does not exist`);
-        return undefined;
-      });
+      const spellAddress = await this.chief.slates(etch, i).catch(() => undefined);
       if (spellAddress) {
         i += 1;
-        spellAddresses.add(spellAddress);
+        addresses.add(spellAddress);
       } else {
         keepGoing = false;
       }
     }
 
-    return spellAddresses;
+    return addresses;
   }
 }
