@@ -15,6 +15,8 @@ export class SpellRepository extends Repository<Spell> {
       } catch (e) {
         console.log(e);
       }
+    } else {
+      await this.update({ address }, { isCasted: false });
     }
   }
 

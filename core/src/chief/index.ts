@@ -172,8 +172,8 @@ export class Chief extends BaseService {
             // Then lookup who the user is voting for
             case FunctionSigs.lock: {
               this.logger.info(`Address ${eventTx.address} added some votes`);
-              const slate = await this.chief.votes(eventTx.address);
-              await this._checkAddressCanBeLifted(slate);
+              // const slate = await this.chief.votes(eventTx.address);
+              // await this._checkAddressCanBeLifted(slate);
               break;
             }
             // vote
@@ -184,7 +184,7 @@ export class Chief extends BaseService {
               this.logger.info(
                 `Address ${eventTx.address} voted on slate ${slate}`
               );
-              await this._checkAddressCanBeLifted(slate);
+              // await this._checkAddressCanBeLifted(slate);
               break;
             }
 
@@ -233,7 +233,7 @@ export class Chief extends BaseService {
     const eventFilter = this.chief.filters["Etch(bytes32)"]();
     this.chief.on(eventFilter, (slate, eventTx) => {
       this._processEvent(eventTx, async () => {
-        await this._checkAddressCanBeLifted(slate);
+        // await this._checkAddressCanBeLifted(slate);
       });
     });
   }

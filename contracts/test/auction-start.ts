@@ -56,6 +56,7 @@ describe("auction keeper", () => {
       const { vow, vatContract, vowContract } = load();
       void vow.start();
       const flapperAddress = await vow.flapperAddress();
+      console.log(`flapperAddress ${flapperAddress}`);
       const flapper = Flapper__factory.connect(flapperAddress, signer);
       const before = await flapper.kicks();
       await sleep(10000);
