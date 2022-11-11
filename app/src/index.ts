@@ -49,6 +49,8 @@ async function main() {
   const chief = new Chief({
     chiefAddress: envs.CHIEF_ADDRESS,
     pauseAddress: envs.DS_PAUSE_ADDRESS,
+    fromBlock: envs.FROM_BLOCK,
+    toBlock: envs.TO_BLOCK,
     signer
   });
 

@@ -12,6 +12,7 @@ import { FunctionSigs, VOID_ADDRESS, SPOT } from "./constants";
 import { BaseService } from "../common/base-service.class";
 import { Wallet } from "../common/wallet";
 import { Database, DataStore } from "./db/data-store";
+import { splitBlocks } from "../common/util";
 
 interface VatIlkInfo {
   Art: BigNumber;
@@ -37,27 +38,6 @@ interface IlkInfo {
   rate: BigNumber;
   spot: BigNumber;
   dust: BigNumber;
-}
-
-/**
- * Split into ranges of blocks
- * This is to avoid full node from throwing error when fetching past events
- * @param fromBlock Oldest block
- * @param latest Highest block
- * @returns
- */
-function splitBlocks(
-  fromBlock: number,
-  latest: number
-): { from: number; to: number }[] {
-  const SPLIT_BY = 10000;
-  const ls: { from: number; to: number }[] = [];
-  for (let i = fromBlock; i <= latest; i += SPLIT_BY) {
-    const from = i;
-    const to = i + SPLIT_BY >= latest ? latest : i + SPLIT_BY;
-    ls.push({ from, to });
-  }
-  return ls;
 }
 
 /**

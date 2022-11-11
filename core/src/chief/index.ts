@@ -11,14 +11,19 @@ import {
   DssExec__factory,
 } from "../types/ether-contracts";
 import { FunctionSigs } from "./constants";
+import { splitBlocks } from "../common/util";
 
 const VOID =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
+
+const VOID_ADDRESS = "0x0000000000000000000000000000000000000000";
 
 export interface ChiefConfig {
   chiefAddress: string;
   pauseAddress: string;
   signer: Wallet;
+  fromBlock: number;
+  toBlock: number | "latest";
 }
 
 export class Chief extends BaseService {
@@ -30,15 +35,25 @@ export class Chief extends BaseService {
 
   readonly schedulers: Map<string, NodeJS.Timeout> = new Map();
 
+  readonly fromBlock: number;
+
+  readonly toBlock: number | "latest";
+
   constructor(args: ChiefConfig) {
-    const { chiefAddress, pauseAddress, signer } = args;
+    const { chiefAddress, pauseAddress, signer, fromBlock, toBlock } = args;
     super(signer, chiefAddress);
+    this.fromBlock = fromBlock;
+    this.toBlock = toBlock;
     this.chief = Chief__factory.connect(chiefAddress, this.signer);
     this.pause = DsPause__factory.connect(pauseAddress, this.signer);
   }
 
   async start(): Promise<void> {
     this.logger.info("Starting chief");
+    await this._lookupFromPastEvents();
+    const hat = await this.chief.hat();
+    await this._scheduleSpell();
+    await this._executeSpell(hat);
     this._handleChiefEvents();
     this._handleEtchEvent();
     this._handlePauseEvents();
@@ -47,7 +62,51 @@ export class Chief extends BaseService {
   // 過去のEtchイベントを取得する
   // dbに格納する
   // そのslateからspell address一覧を取得して
-  // それぞれのspell addressのapproveがhatより上回っているか確認する
+  private async _lookupFromPastEvents() {
+    this.logger.info("Fetching past events...");
+    const latestBlock =
+      this.toBlock === "latest"
+        ? await this.signer.provider.getBlockNumber()
+        : this.toBlock;
+    const bunch = splitBlocks(this.fromBlock, latestBlock);
+    const etches: Set<string> = new Set();
+    if (this.fromBlock <= latestBlock) {
+      this.logger.info(
+        `Fetching vault data from past events from: ${this.fromBlock}, to: ${latestBlock}`
+      );
+      await Promise.all(
+        bunch.map(async ({ from, to }) => {
+          const es = await this._getPastEvents(from, to);
+          for (const e of es) {
+            etches.add(e);
+          }
+        })
+      );
+    }
+    for (const etch of etches.values()) {
+      const addresses = await this.getAddressesByEtch(etch);
+      this.slates.set(etch, addresses);
+    }
+    this.logger.info("Finished fetching past events");
+  }
+
+  // Retrieve events in the specified block range.
+  /**
+   * Fetch
+   * @param from
+   * @param to
+   * @param functionSig
+   * @returns
+   */
+  private async _getPastEvents(
+    from: number,
+    to: number | "latest"
+  ): Promise<string[]> {
+    const eventFilter = this.chief.filters["Etch(bytes32)"]();
+    const events = await this.chief.queryFilter(eventFilter, from, to);
+    const eventRawData = events.map((event) => event.args[0]);
+    return eventRawData;
+  }
 
   private _handleChiefEvents() {
     [
@@ -136,7 +195,7 @@ export class Chief extends BaseService {
     const addresses = await this.getAddressesByEtch(etch);
     this.slates.set(etch, addresses);
     let spellWithApproval = {
-      address: "0x0000000000000000000000000000000000000000",
+      address: VOID_ADDRESS,
       approval: BigNumber.from(0),
     };
     for (const address of addresses.values()) {
@@ -147,7 +206,10 @@ export class Chief extends BaseService {
     }
     const hat = await this.chief.hat();
     const hatApproval = await this.chief.approvals(hat);
-    if (spellWithApproval.approval.gt(hatApproval)) {
+    if (
+      spellWithApproval.approval.gt(hatApproval) &&
+      spellWithApproval.address !== VOID_ADDRESS
+    ) {
       await this._submitTx(
         this.chief.lift(spellWithApproval.address),
         `Lifting address ${spellWithApproval.address} as hat`
@@ -157,7 +219,7 @@ export class Chief extends BaseService {
 
   private async _checkAllAddresses() {
     let spellWithApproval = {
-      address: "0x0000000000000000000000000000000000000000",
+      address: VOID_ADDRESS,
       approval: BigNumber.from(0),
     };
     for (const addresses of this.slates.values()) {
@@ -170,7 +232,10 @@ export class Chief extends BaseService {
     }
     const hat = await this.chief.hat();
     const hatApproval = await this.chief.approvals(hat);
-    if (spellWithApproval.approval.gt(hatApproval)) {
+    if (
+      spellWithApproval.approval.gt(hatApproval) &&
+      spellWithApproval.address !== VOID_ADDRESS
+    ) {
       await this._submitTx(
         this.chief.lift(spellWithApproval.address),
         `Lifting address ${spellWithApproval.address} as hat`
@@ -180,7 +245,7 @@ export class Chief extends BaseService {
 
   private async _scheduleSpell() {
     const hat = await this.chief.hat();
-    this.logger.info(`scheduling address ${hat}`);
+    this.logger.info(`Scheduling spell ${hat} to execute`);
     const spell = DssExec__factory.connect(hat, this.signer);
     // hat could could be some random adress
     try {
@@ -196,7 +261,9 @@ export class Chief extends BaseService {
       this.logger.info(`Spell ${hat} is already scheduled`);
       return undefined;
     } catch {
-      this.logger.warn(`hat ${hat} is not a spell therefore cannot be executed`);
+      this.logger.warn(
+        `hat ${hat} is not a spell therefore cannot be executed`
+      );
       return undefined;
     }
   }
@@ -205,26 +272,35 @@ export class Chief extends BaseService {
     const BUFFER = 60 * 1000;
     if (!this.schedulers.has(address)) {
       const spell = DssExec__factory.connect(address, this.signer);
-      const nextCastTime = await spell.nextCastTime();
-      const now = new Date().getTime();
-      const delta = nextCastTime.toNumber() * 1000 - now;
-      this.logger.debug(`Delta ${delta}`);
-      if (delta <= 0) {
-        const timerId = setTimeout(() => {
-          void this._submitTx(spell.cast(), `Executing spell ${spell.address}`);
-        }, BUFFER);
-        this.schedulers.set(address, timerId);
-      } else {
-        const timerId = setTimeout(() => {
-          void this._submitTx(spell.cast(), `Executing spell ${spell.address}`);
-        }, delta + BUFFER);
-        this.schedulers.set(address, timerId);
+      const isDone = await spell.done();
+      if (!isDone) {
+        const nextCastTime = await spell.nextCastTime();
+        const now = new Date().getTime();
+        const delta = nextCastTime.toNumber() * 1000 - now;
+        this.logger.debug(`Delta ${delta}`);
+        if (delta <= 0) {
+          const timerId = setTimeout(() => {
+            void this._submitTx(
+              spell.cast(),
+              `Executing spell ${spell.address}`
+            );
+          }, BUFFER);
+          this.schedulers.set(address, timerId);
+        } else {
+          const timerId = setTimeout(() => {
+            void this._submitTx(
+              spell.cast(),
+              `Executing spell ${spell.address}`
+            );
+          }, delta + BUFFER);
+          this.schedulers.set(address, timerId);
+        }
       }
     }
   }
 
   private _handleEtchEvent() {
-    const eventFilter = this.chief.filters.Etch();
+    const eventFilter = this.chief.filters["Etch(bytes32)"]();
     this.chief.on(eventFilter, (etch, eventTx) => {
       this._processEvent(eventTx, async () => {
         await this._checkAddressCanBeLifted(etch);
@@ -240,7 +316,9 @@ export class Chief extends BaseService {
     let i = 0;
     let keepGoing = true;
     while (keepGoing) {
-      const spellAddress = await this.chief.slates(etch, i).catch(() => undefined);
+      const spellAddress = await this.chief
+        .slates(etch, i)
+        .catch(() => undefined);
       if (spellAddress) {
         i += 1;
         addresses.add(spellAddress);
