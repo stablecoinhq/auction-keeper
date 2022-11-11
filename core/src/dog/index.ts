@@ -1,4 +1,5 @@
 import { BigNumber, constants, ethers } from "ethers";
+import { DataSource } from "typeorm";
 import {
   Dog as DogContract,
   Vat as VatContract,
@@ -11,7 +12,7 @@ import { VaultCollection } from "./vault-collection";
 import { FunctionSigs, VOID_ADDRESS, SPOT } from "./constants";
 import { BaseService } from "../common/base-service.class";
 import { Wallet } from "../common/wallet";
-import { Database, DataStore } from "./db/data-store";
+import { DataStore } from "./data-store";
 import { splitBlocks } from "../common/util";
 
 interface VatIlkInfo {
@@ -82,10 +83,7 @@ export interface DogConfig {
    */
   toBlock: number | "latest";
 
-  /**
-   * Where to store data
-   */
-  dataStoreMode: "memory" | "file";
+  dataSource: DataSource;
 }
 
 type NewType = {
@@ -142,10 +140,9 @@ export class Dog extends BaseService {
   readonly Hole: Promise<BigNumber>;
 
   constructor(config: DogConfig) {
-    const { dogAddress, signer, fromBlock, toBlock, dataStoreMode } = config;
+    const { dogAddress, signer, fromBlock, toBlock, dataSource } = config;
     super(signer, dogAddress);
-    const mode = dataStoreMode === "file" ? Database.file : Database.memory;
-    this.dataStore = new DataStore(mode);
+    this.dataStore = new DataStore(dataSource);
     this.signerAddress = this.signer.address;
     this.fromBlock = fromBlock;
     this.toBlock = toBlock;

@@ -3,7 +3,7 @@ import { Vault } from "../entity/vault.entity";
 import {
   VaultCollection,
   Vault as VaultInterface,
-} from "../../vault-collection";
+} from "../../dog/vault-collection";
 
 /**
  * Customized repository for Vault entity

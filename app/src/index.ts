@@ -10,6 +10,8 @@ import {
   getLogger,
   loadConfig,
   Chief,
+  createDataSource,
+  Database,
 } from "@auction-keeper/core";
 import { getEnvs } from "./config";
 
@@ -28,15 +30,14 @@ async function main() {
 
   // singletonにする
   const provider = new WebSocketProvider(envs.RPC_HOST);
-  // const provider = new ethers.providers.JsonRpcProvider(envs.RPC_HOST);
-
+  const dataSource = await createDataSource(Database.file);
   const signer = Wallet.fromMnemonic(envs.MNEMONIC).connect(provider);
   const dog = new Dog({
     dogAddress: envs.DOG_ADDRESS,
     signer,
     fromBlock: envs.FROM_BLOCK,
     toBlock: envs.TO_BLOCK,
-    dataStoreMode: "file",
+    dataSource,
   });
   const vatAddress = await dog.getVatAddress();
 
@@ -51,7 +52,8 @@ async function main() {
     pauseAddress: envs.DS_PAUSE_ADDRESS,
     fromBlock: envs.FROM_BLOCK,
     toBlock: envs.TO_BLOCK,
-    signer
+    signer,
+    dataSource
   });
 
   const flapperAddress = await vow.flapperAddress();

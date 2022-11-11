@@ -1,6 +1,7 @@
 /* eslint-disable @typescript-eslint/require-await */
 /* eslint-disable @typescript-eslint/no-loop-func */
 import { BigNumber } from "ethers";
+import { DataSource } from "typeorm";
 import { BaseService } from "../common/base-service.class";
 import { Wallet } from "../common/wallet";
 import {
@@ -12,6 +13,7 @@ import {
 } from "../types/ether-contracts";
 import { FunctionSigs } from "./constants";
 import { splitBlocks } from "../common/util";
+import { DataStore } from "./data-store";
 
 const VOID =
   "0x0000000000000000000000000000000000000000000000000000000000000000";
@@ -24,6 +26,7 @@ export interface ChiefConfig {
   signer: Wallet;
   fromBlock: number;
   toBlock: number | "latest";
+  dataSource: DataSource;
 }
 
 /**
@@ -37,7 +40,7 @@ export class Chief extends BaseService {
 
   readonly pause: DsPauseContract;
 
-  readonly slates: Map<string, Set<string>> = new Map<string, Set<string>>();
+  // readonly slates: Map<string, Set<string>> = new Map<string, Set<string>>();
 
   readonly schedulers: Map<string, NodeJS.Timeout> = new Map();
 
@@ -45,9 +48,19 @@ export class Chief extends BaseService {
 
   readonly toBlock: number | "latest";
 
+  private dataStore: DataStore;
+
   constructor(args: ChiefConfig) {
-    const { chiefAddress, pauseAddress, signer, fromBlock, toBlock } = args;
+    const {
+      chiefAddress,
+      pauseAddress,
+      signer,
+      fromBlock,
+      toBlock,
+      dataSource,
+    } = args;
     super(signer, chiefAddress);
+    this.dataStore = new DataStore(dataSource);
     this.fromBlock = fromBlock;
     this.toBlock = toBlock;
     this.chief = Chief__factory.connect(chiefAddress, this.signer);
@@ -75,7 +88,7 @@ export class Chief extends BaseService {
         ? await this.signer.provider.getBlockNumber()
         : this.toBlock;
     const bunch = splitBlocks(this.fromBlock, latestBlock);
-    const etches: Set<string> = new Set();
+    const slates: Set<string> = new Set();
     if (this.fromBlock <= latestBlock) {
       this.logger.info(
         `Fetching vault data from past events from: ${this.fromBlock}, to: ${latestBlock}`
@@ -84,14 +97,14 @@ export class Chief extends BaseService {
         bunch.map(async ({ from, to }) => {
           const es = await this._getPastEvents(from, to);
           for (const e of es) {
-            etches.add(e);
+            slates.add(e);
           }
         })
       );
     }
-    for (const etch of etches.values()) {
-      const addresses = await this.getAddressesByEtch(etch);
-      this.slates.set(etch, addresses);
+    for (const slate of slates.values()) {
+      const addresses = await this.getAddressesBySlate(slate);
+      await this.dataStore.addSlates(slate, addresses);
     }
     this.logger.info("Finished fetching past events");
   }
@@ -149,19 +162,19 @@ export class Chief extends BaseService {
             // Then lookup who the user is voting for
             case FunctionSigs.lock: {
               this.logger.info(`Address ${eventTx.address} added some votes`);
-              const etch = await this.chief.votes(eventTx.address);
-              await this._checkAddressCanBeLifted(etch);
+              const slate = await this.chief.votes(eventTx.address);
+              await this._checkAddressCanBeLifted(slate);
               break;
             }
             // vote
             // First argument is an etch, so get the list of spell addresses for that etch and
             // check whether the approval of each spell address is greater than of the hat.
             case FunctionSigs.voteBySlate: {
-              const [, etch] = eventTx.topics;
+              const [, slate] = eventTx.topics;
               this.logger.info(
-                `Address ${eventTx.address} voted on slate ${etch}`
+                `Address ${eventTx.address} voted on slate ${slate}`
               );
-              await this._checkAddressCanBeLifted(etch);
+              await this._checkAddressCanBeLifted(slate);
               break;
             }
 
@@ -208,20 +221,20 @@ export class Chief extends BaseService {
    */
   private _handleEtchEvent() {
     const eventFilter = this.chief.filters["Etch(bytes32)"]();
-    this.chief.on(eventFilter, (etch, eventTx) => {
+    this.chief.on(eventFilter, (slate, eventTx) => {
       this._processEvent(eventTx, async () => {
-        await this._checkAddressCanBeLifted(etch);
+        await this._checkAddressCanBeLifted(slate);
       });
     });
   }
 
   /**
    * Get list of addresses associated with given etch, then check whether any of them can be lifted
-   * @param etch etch
+   * @param slate etch
    */
-  private async _checkAddressCanBeLifted(etch: string) {
-    const addresses = await this.getAddressesByEtch(etch);
-    this.slates.set(etch, addresses);
+  private async _checkAddressCanBeLifted(slate: string) {
+    const addresses = await this.getAddressesBySlate(slate);
+    await this.dataStore.addSlates(slate, addresses);
     let spellWithApproval = {
       address: VOID_ADDRESS,
       approval: BigNumber.from(0),
@@ -253,12 +266,11 @@ export class Chief extends BaseService {
       address: VOID_ADDRESS,
       approval: BigNumber.from(0),
     };
-    for (const addresses of this.slates.values()) {
-      for (const address of addresses.values()) {
-        const approval = await this.chief.approvals(address);
-        if (approval.gte(spellWithApproval.approval)) {
-          spellWithApproval = { address, approval };
-        }
+    const addresses = await this.dataStore.getAddresses();
+    for (const address of addresses.values()) {
+      const approval = await this.chief.approvals(address);
+      if (approval.gte(spellWithApproval.approval)) {
+        spellWithApproval = { address, approval };
       }
     }
     const hat = await this.chief.hat();
@@ -336,16 +348,16 @@ export class Chief extends BaseService {
     }
   }
 
-  async getAddressesByEtch(etch: string): Promise<Set<string>> {
+  async getAddressesBySlate(slate: string): Promise<Set<string>> {
     const addresses: Set<string> = new Set();
-    if (etch === VOID) {
+    if (slate === VOID) {
       return addresses;
     }
     let i = 0;
     let keepGoing = true;
     while (keepGoing) {
       const spellAddress = await this.chief
-        .slates(etch, i)
+        .slates(slate, i)
         .catch(() => undefined);
       if (spellAddress) {
         i += 1;
