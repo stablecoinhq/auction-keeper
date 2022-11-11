@@ -7,6 +7,8 @@ import {
   Dog,
   Vow,
   Vat__factory,
+  createDataSource,
+  Database,
 } from "@auction-keeper/core";
 import { BigNumber } from "ethers";
 import {
@@ -99,12 +101,13 @@ describe("auction keeper", () => {
     });
 
     it("Should start collateral auction", async () => {
+      const dataSource = await createDataSource(Database.memory);
       const dog = new Dog({
         dogAddress: "0x135954d155898D42C90D2a57824C690e0c7BEf1B",
         signer,
         fromBlock: 12316454,
         toBlock: 12317309,
-        dataStoreMode: "memory",
+        dataSource,
       });
       const [{ address }] = await dog.getClipAddresses([
         "0x4c494e4b2d410000000000000000000000000000000000000000000000000000",

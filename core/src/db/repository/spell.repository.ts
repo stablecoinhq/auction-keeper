@@ -29,6 +29,11 @@ export class SpellRepository extends Repository<Spell> {
   }
 
   async markSpellAsDone(address: string) {
-    return this.update({ address }, { isCasted: true });
+    const isRegistered = await this.findOneBy({ address });
+    if (isRegistered) {
+      return this.update({ address }, { isCasted: true });
+    }
+    const newSpell = this.create({ address, isCasted: false });
+    return this.save(newSpell);
   }
 }

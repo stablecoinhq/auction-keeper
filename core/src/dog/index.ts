@@ -231,7 +231,7 @@ export class Dog extends BaseService {
           }, Promise.resolve(new VaultCollection()))
         )
       );
-      this.dataStore.addBlock(latestBlock);
+      await this.dataStore.addBlock(latestBlock);
     }
 
     const allVaults = await this.dataStore.getAllVaults();
@@ -277,7 +277,7 @@ export class Dog extends BaseService {
         this._processEvent(eventTx, async () => {
           const [, ilk, arg2] = eventTx.topics;
           const eventRawData = eventTx.data;
-          this.dataStore.addBlock(eventTx.blockNumber);
+          await this.dataStore.addBlock(eventTx.blockNumber);
 
           switch (event) {
             case FunctionSigs.fold: {

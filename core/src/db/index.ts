@@ -12,7 +12,6 @@ export { Block } from "./entity/block.entity";
 export { Vault } from "./entity/vault.entity";
 export { Spell } from "./entity/spell.entity";
 export { Slate } from "./entity/slate.entity";
-
 /**
  * Where to store database
  */

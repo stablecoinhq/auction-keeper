@@ -29,7 +29,7 @@ export class Wallet extends EtherWallet {
     provider?: Provider
   ) {
     super(privateKey, provider);
-    this.logger = getLogger().child({ service: "wallet" });
+    this.logger = getLogger().child({ service: "Wallet" });
     if (!Wallet.instance) {
       return this;
     }

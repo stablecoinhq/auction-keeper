@@ -54,8 +54,8 @@ export class DataStore {
    * Add block to database
    * @param num blockNumber
    */
-  addBlock(num: number): void {
-    void this.blockRepository.insertBlock(num);
+  addBlock(num: number): Promise<void> {
+    return this.blockRepository.insertBlock(num);
   }
 
   /**

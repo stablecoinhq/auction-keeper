@@ -65,14 +65,21 @@ export class Chief extends BaseService {
     this.toBlock = toBlock;
     this.chief = Chief__factory.connect(chiefAddress, this.signer);
     this.pause = DsPause__factory.connect(pauseAddress, this.signer);
+    this.addReconnect(async () => {
+      await this._lookupFromPastEvents();
+      await this._scheduleSpell();
+    });
   }
 
   async start(): Promise<void> {
     this.logger.info("Starting chief");
     await this._lookupFromPastEvents();
     const hat = await this.chief.hat();
+    const addresses = await this.dataStore.getAddresses();
+    for (const address of [...addresses, hat]) {
+      await this._executeSpell(address);
+    }
     await this._scheduleSpell();
-    await this._executeSpell(hat);
     this._handleChiefEvents();
     this._handleEtchEvent();
     this._handlePauseEvents();
@@ -87,11 +94,13 @@ export class Chief extends BaseService {
       this.toBlock === "latest"
         ? await this.signer.provider.getBlockNumber()
         : this.toBlock;
-    const bunch = splitBlocks(this.fromBlock, latestBlock);
+    const fromBlock =
+      (await this.dataStore.getLatestBlock())?.number || this.fromBlock;
+    const bunch = splitBlocks(fromBlock, latestBlock);
     const slates: Set<string> = new Set();
-    if (this.fromBlock <= latestBlock) {
+    if (fromBlock <= latestBlock) {
       this.logger.info(
-        `Fetching vault data from past events from: ${this.fromBlock}, to: ${latestBlock}`
+        `Fetching vault data from past events from: ${fromBlock}, to: ${latestBlock}`
       );
       await Promise.all(
         bunch.map(async ({ from, to }) => {
@@ -106,6 +115,7 @@ export class Chief extends BaseService {
       const addresses = await this.getAddressesBySlate(slate);
       await this.dataStore.addSlates(slate, addresses);
     }
+    await this.dataStore.addBlock(latestBlock);
     this.logger.info("Finished fetching past events");
   }
 
@@ -114,7 +124,6 @@ export class Chief extends BaseService {
    * Fetch
    * @param from
    * @param to
-   * @param functionSig
    * @returns
    */
   private async _getPastEvents(
@@ -150,6 +159,7 @@ export class Chief extends BaseService {
           address: string;
         };
         this._processEvent(eventTx, async () => {
+          await this.dataStore.addBlock(eventTx.blockNumber);
           switch (functionSig) {
             // Free
             // You have to run through all the spell addresses in order to find out
@@ -291,7 +301,7 @@ export class Chief extends BaseService {
    */
   private async _scheduleSpell() {
     const hat = await this.chief.hat();
-    this.logger.info(`Scheduling spell ${hat} to execute`);
+    this.logger.info(`Scheduling spell ${hat}`);
     const spell = DssExec__factory.connect(hat, this.signer);
     // hat could could be some random adress
     try {
@@ -302,6 +312,7 @@ export class Chief extends BaseService {
           spell.schedule(),
           `Scheduling spell ${spell.address}`
         );
+        await this.dataStore.addSpell(hat);
         return result;
       }
       this.logger.info(`Spell ${hat} is already scheduled`);
@@ -321,29 +332,27 @@ export class Chief extends BaseService {
     const BUFFER = 60 * 1000;
     if (!this.schedulers.has(address)) {
       const spell = DssExec__factory.connect(address, this.signer);
-      const isDone = await spell.done();
-      if (!isDone) {
-        const nextCastTime = await spell.nextCastTime();
-        const now = new Date().getTime();
-        const delta = nextCastTime.toNumber() * 1000 - now;
-        this.logger.debug(`Delta ${delta}`);
-        if (delta <= 0) {
+      try {
+        const isDone = await spell.done();
+        if (!isDone) {
+          const nextCastTime = await spell.nextCastTime();
+          const now = new Date().getTime();
+          const delta = nextCastTime.toNumber() * 1000 - now;
+          const timer = delta <= 0 ? BUFFER : delta + BUFFER;
+          this.logger.debug(`Delta ${delta}`);
           const timerId = setTimeout(() => {
             void this._submitTx(
               spell.cast(),
-              `Executing spell ${spell.address}`
-            );
-          }, BUFFER);
+              `Casting spell ${spell.address}`
+            ).then(() => this.dataStore.markSpellAsDone(address));
+          }, timer);
           this.schedulers.set(address, timerId);
         } else {
-          const timerId = setTimeout(() => {
-            void this._submitTx(
-              spell.cast(),
-              `Executing spell ${spell.address}`
-            );
-          }, delta + BUFFER);
-          this.schedulers.set(address, timerId);
+          await this.dataStore.markSpellAsDone(address);
         }
+      } catch (_e) {
+        this.logger.warn(`Address ${address} is not a spell`);
+        await this.dataStore.markSpellAsDone(address);
       }
     }
   }
