@@ -25,7 +25,7 @@ function toHex(str: string) {
   return `0x${hex}${rest}`;
 }
 
-type Contract =
+export type Contract =
   | "MCD_ADM"
   | "MCD_PAUSE"
   | "MCD_DOG"
