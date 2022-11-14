@@ -5,10 +5,6 @@ export interface Envs {
   TO_BLOCK: number | "latest";
   ILKS: string[];
   RUN_CLIP: boolean;
-  DOG_ADDRESS: string;
-  VOW_ADDRESS: string;
-  CHIEF_ADDRESS: string;
-  DS_PAUSE_ADDRESS: string;
   CHAINLOG_ADDRESS: string;
 }
 
@@ -27,10 +23,6 @@ export function getEnvs(): Envs {
 
   return {
     RPC_HOST: process.env.RPC_HOST!,
-    DOG_ADDRESS: process.env.DOG_ADDRESS!,
-    VOW_ADDRESS: process.env.VOW_ADDRESS!,
-    CHIEF_ADDRESS: process.env.CHIEF_ADDRESS!,
-    DS_PAUSE_ADDRESS: process.env.DS_PAUSE_ADDRESS!,
     CHAINLOG_ADDRESS: process.env.CHAINLOG_ADDRESS!,
     MNEMONIC: process.env.MNEMONIC!,
     FROM_BLOCK: parseInt(process.env.FROM_BLOCK!, 10),

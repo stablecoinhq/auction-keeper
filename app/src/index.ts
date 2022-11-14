@@ -83,8 +83,8 @@ async function main() {
   logger.info(
     JSON.stringify(
       {
-        DOG_ADDRESS: envs.DOG_ADDRESS,
-        VOW_ADDRESS: envs.VOW_ADDRESS,
+        DOG_ADDRESS: dogAddress,
+        VOW_ADDRESS: vowAddress,
         SIGNER_ADDRESS: signer.address,
         VAT_ADDRESS: vatAddress,
         CLIP_ADDRESSES: clipAddresses,
