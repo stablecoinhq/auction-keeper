@@ -13,19 +13,17 @@ This application watches auction contracts
 
 Prepare the following `.envs` files in the root of the directory
 
-| Key           | Value                                             |
-| ------------- | ------------------------------------------------- |
-| RPC_HOST      | Websocket rpc url                                 |
-| ILKS          | List of ilks to participate in collateral auction |
-| MNEMONIC      | Mnemonic                                          |
-| FROM_BLOCK    | (For dog) Block to fetch from                     |
-| TO_BLOCK      | (For dog) Block to end                            |
-| DOG_ADDRESS   | Contract address of a dog contract                |
-| VOW_ADDRESS   | Contract address of a vow contract                |
-| RUN_CLIP      | Flag indicate whether to participate clip         |
-| LOG_DIR       | Log directory                                     |
-| SLACK_TOKEN   | Slack token                                       |
-| SLACK_CHANNEL | Slack channel                                     |
+| Key              | Value                                             |
+| ---------------- | ------------------------------------------------- |
+| RPC_HOST         | Websocket rpc url                                 |
+| ILKS             | List of ilks to participate in collateral auction |
+| MNEMONIC         | Mnemonic                                          |
+| FROM_BLOCK       | Block to fetch past events from                   |
+| TO_BLOCK         | Block to end                                      |
+| CHAINLOG_ADDRESS | Address of a chainlog contract                    |
+| RUN_CLIP         | Flag indicate whether to participate clip         |
+| SLACK_TOKEN      | Slack token                                       |
+| SLACK_CHANNEL    | Slack channel                                     |
 
 ## Executing
 
@@ -42,7 +40,13 @@ docker build . --target=application --tag=auction-keeper:latest
 2. run
 
 ```
-docker run --rm --name=auction-keeper -v $(pwd)/.env:/app/.env auction-keeper:latest
+docker run --rm --name=auction-keeper -v $(pwd)/.env:/app/.env -v $(pwd)/database:/app/database $(pwd)/logs:/app/logs auction-keeper:latest
+```
+
+or with docker-compose
+
+```
+docker-compose up
 ```
 
 ### Deploying to AWS EC2 instance

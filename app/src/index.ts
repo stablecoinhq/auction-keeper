@@ -21,7 +21,7 @@ loadConfig();
 const logger = getLogger();
 
 process.on("SIGINT", () => {
-  logger.info("\nGracefully shutting down from SIGINT (Ctrl-C)");
+  logger.info("Gracefully shutting down from SIGINT (Ctrl-C)");
   // some other closing procedures go here
   process.exit(0);
 });
