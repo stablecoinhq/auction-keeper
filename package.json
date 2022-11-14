@@ -6,7 +6,7 @@
   "scripts": {
     "test": "jest",
     "test-contracts": "cd contracts && npx hardhat test",
-    "build": "tsc --build",
+    "build": "tsc --build && cd contracts && npx hardhat compile",
     "start": "node app/dist/src/index.js",
     "start-test": "ENV_PATH=.env.test npx ts-node app/src/index.ts",
     "test-vow": "ENV_PATH=.env.test npx ts-node app/src/vow-test.ts",

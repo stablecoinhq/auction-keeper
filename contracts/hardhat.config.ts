@@ -4,7 +4,34 @@ import "@nomicfoundation/hardhat-toolbox";
 require("dotenv").config();
 
 const config: HardhatUserConfig = {
-  solidity: "0.5.12",
+  solidity: {
+    compilers: [
+      {
+        version: "0.5.12",
+        settings: {
+          optimizer: {
+            enabled: true,
+          },
+        },
+      },
+      {
+        version: "0.5.5",
+        settings: {
+          optimizer: {
+            enabled: true,
+          },
+        },
+      },
+      {
+        version: "0.6.12",
+        settings: {
+          optimizer: {
+            enabled: true,
+          },
+        },
+      },
+    ],
+  },
   // ここにローカル追加
   networks: {
     hardhat: {

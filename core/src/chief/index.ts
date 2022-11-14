@@ -172,9 +172,13 @@ export class Chief extends BaseService {
             // Get the value of msg.sender
             // Then lookup who the user is voting for
             case FunctionSigs.lock: {
-              this.logger.info("Some votes were added, cheking");
               const slate = await this.chief.votes(eventTx.address);
-              await this._checkAddressCanBeLifted(slate);
+              if (slate !== VOID) {
+                this.logger.info(
+                  `Some votes were added to slate ${slate}, cheking`
+                );
+                await this._checkAddressCanBeLifted(slate);
+              }
               break;
             }
             // vote

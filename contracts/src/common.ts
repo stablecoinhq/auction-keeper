@@ -2,8 +2,11 @@ import { ethers, network } from "hardhat";
 import { BigNumber } from "ethers";
 import { Wallet } from "@auction-keeper/core";
 
-export async function forkNetwork(n?: number): Promise<void> {
-  const rpcURL = `https://mainnet.infura.io/v3/${process.env.INFURA_API_KEY!}`;
+type Chain = "mainnet" | "goerli";
+
+export async function forkNetwork(chain?: Chain, n?: number): Promise<void> {
+  const rpcURL = `https://${chain || "mainnet"}.infura.io/v3/${process.env
+    .INFURA_API_KEY!}`;
   const forkObj = n
     ? {
         jsonRpcUrl: rpcURL,
@@ -73,6 +76,11 @@ export const Commands = {
   Line: toHex("Line"),
   ttl: toHex("ttl"),
   tau: toHex("tau"),
+};
+
+export const Contracts = {
+  chief: toHex("MCD_ADM"),
+  pause: toHex("MCD_PAUSE"),
 };
 
 export const ilk = toHex("ETH-A");

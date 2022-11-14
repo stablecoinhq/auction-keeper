@@ -49,7 +49,7 @@ function load() {
 describe("auction keeper", () => {
   describe("Surplus auction", () => {
     beforeEach(async () => {
-      await forkNetwork(9656038);
+      await forkNetwork("mainnet", 9656038);
     });
 
     it("Should start surplus auction", async () => {
@@ -79,7 +79,7 @@ describe("auction keeper", () => {
   // When the surplus dai becomes 0, the debt auction will start
   describe("Debt auction start", () => {
     beforeEach(async () => {
-      await forkNetwork(9702725);
+      await forkNetwork("mainnet", 9702725);
     });
     it("Should start debt auction", async () => {
       const { vow, vatContract } = load();
@@ -98,7 +98,7 @@ describe("auction keeper", () => {
 
   describe("Collateral auction", () => {
     beforeEach(async () => {
-      await forkNetwork(12317309);
+      await forkNetwork("mainnet", 12317309);
     });
 
     it("Should start collateral auction", async () => {
