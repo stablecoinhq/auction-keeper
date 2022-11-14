@@ -6,7 +6,7 @@ import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { BigNumber } from "ethers";
 import { Chief, createDataSource, Database } from "@auction-keeper/core";
-import { forkNetwork, Contracts, signer, sleep } from "../src/common";
+import { forkNetwork, Contracts, signer, sleep } from "./util";
 
 // Create dss-spell contract
 // Fork from goerli chain

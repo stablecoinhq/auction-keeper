@@ -17,7 +17,7 @@ import {
   signer,
   forkNetwork,
   sleep,
-} from "../src/common";
+} from "./util";
 
 require("dotenv").config();
 

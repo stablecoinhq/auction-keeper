@@ -10,7 +10,7 @@ import {
   signer,
   sleep,
   VOID_ADDRESS,
-} from "../src/common";
+} from "./util";
 
 const surplusAuctionAmount = BigNumber.from(
   "30000000000000000000000000000000000000000000000000"

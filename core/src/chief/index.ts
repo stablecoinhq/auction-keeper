@@ -156,7 +156,6 @@ export class Chief extends BaseService {
           data: string;
           transactionHash: string;
           blockNumber: number;
-          address: string;
         };
         this._processEvent(eventTx, async () => {
           await this.dataStore.addBlock(eventTx.blockNumber);
@@ -172,10 +171,13 @@ export class Chief extends BaseService {
             // Get the value of msg.sender
             // Then lookup who the user is voting for
             case FunctionSigs.lock: {
-              const slate = await this.chief.votes(eventTx.address);
+              const receipt = await this.signer.provider.getTransactionReceipt(
+                eventTx.transactionHash
+              );
+              const slate = await this.chief.votes(receipt.from);
               if (slate !== VOID) {
                 this.logger.info(
-                  `Some votes were added to slate ${slate}, cheking`
+                  `Address ${receipt.from} voted on slate ${slate}, cheking`
                 );
                 await this._checkAddressCanBeLifted(slate);
               }
@@ -186,8 +188,11 @@ export class Chief extends BaseService {
             // check whether the approval of each spell address is greater than of the hat.
             case FunctionSigs.voteBySlate: {
               const [, slate] = eventTx.topics;
+              const receipt = await this.signer.provider.getTransactionReceipt(
+                eventTx.transactionHash
+              );
               this.logger.info(
-                `Address ${eventTx.address} voted on slate ${slate}`
+                `Address ${receipt.from} voted on slate ${slate}, checking`
               );
               await this._checkAddressCanBeLifted(slate);
               break;
@@ -220,7 +225,6 @@ export class Chief extends BaseService {
         data: string;
         transactionHash: string;
         blockNumber: number;
-        address: string;
       };
       this._processEvent(eventTx, async () => {
         // 1st argument of plot() is spell address
