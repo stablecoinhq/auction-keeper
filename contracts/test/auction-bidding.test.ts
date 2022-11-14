@@ -4,7 +4,7 @@ import { BigNumber } from "ethers";
 import { loadFixture } from "@nomicfoundation/hardhat-network-helpers";
 import { expect } from "chai";
 import { Auction, AuctionType } from "@auction-keeper/core";
-import { forkNetwork, signer, sleep } from "../src/common";
+import { forkNetwork, signer, sleep } from "./util";
 
 const surplusAuctionAmount = BigNumber.from(
   "30000000000000000000000000000000000000000000000000"

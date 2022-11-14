@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { ethers } from "hardhat";
 import { BigNumber } from "ethers";
-import { Commands } from "../src/common";
+import { Commands } from "../test/util";
 
 async function main() {
   /**

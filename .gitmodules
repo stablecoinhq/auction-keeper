@@ -1,0 +1,3 @@
+[submodule "contracts/lib/dss-exec-lib"]
+	path = contracts/lib/dss-exec-lib
+	url = git@github.com:stablecoinhq/dss-exec-lib.git

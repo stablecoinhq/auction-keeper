@@ -1,4 +1,5 @@
 import { BigNumber, constants, ethers } from "ethers";
+import { DataSource } from "typeorm";
 import {
   Dog as DogContract,
   Vat as VatContract,
@@ -11,7 +12,8 @@ import { VaultCollection } from "./vault-collection";
 import { FunctionSigs, VOID_ADDRESS, SPOT } from "./constants";
 import { BaseService } from "../common/base-service.class";
 import { Wallet } from "../common/wallet";
-import { Database, DataStore } from "./db/data-store";
+import { DataStore } from "./data-store";
+import { splitBlocks } from "../common/util";
 
 interface VatIlkInfo {
   Art: BigNumber;
@@ -37,27 +39,6 @@ interface IlkInfo {
   rate: BigNumber;
   spot: BigNumber;
   dust: BigNumber;
-}
-
-/**
- * Split into ranges of blocks
- * This is to avoid full node from throwing error when fetching past events
- * @param fromBlock Oldest block
- * @param latest Highest block
- * @returns
- */
-function splitBlocks(
-  fromBlock: number,
-  latest: number
-): { from: number; to: number }[] {
-  const SPLIT_BY = 10000;
-  const ls: { from: number; to: number }[] = [];
-  for (let i = fromBlock; i <= latest; i += SPLIT_BY) {
-    const from = i;
-    const to = i + SPLIT_BY >= latest ? latest : i + SPLIT_BY;
-    ls.push({ from, to });
-  }
-  return ls;
 }
 
 /**
@@ -102,10 +83,7 @@ export interface DogConfig {
    */
   toBlock: number | "latest";
 
-  /**
-   * Where to store data
-   */
-  dataStoreMode: "memory" | "file";
+  dataSource: DataSource;
 }
 
 type NewType = {
@@ -162,10 +140,9 @@ export class Dog extends BaseService {
   readonly Hole: Promise<BigNumber>;
 
   constructor(config: DogConfig) {
-    const { dogAddress, signer, fromBlock, toBlock, dataStoreMode } = config;
+    const { dogAddress, signer, fromBlock, toBlock, dataSource } = config;
     super(signer, dogAddress);
-    const mode = dataStoreMode === "file" ? Database.file : Database.memory;
-    this.dataStore = new DataStore(mode);
+    this.dataStore = new DataStore(dataSource);
     this.signerAddress = this.signer.address;
     this.fromBlock = fromBlock;
     this.toBlock = toBlock;
@@ -254,7 +231,7 @@ export class Dog extends BaseService {
           }, Promise.resolve(new VaultCollection()))
         )
       );
-      this.dataStore.addBlock(latestBlock);
+      await this.dataStore.addBlock(latestBlock);
     }
 
     const allVaults = await this.dataStore.getAllVaults();
@@ -300,7 +277,7 @@ export class Dog extends BaseService {
         this._processEvent(eventTx, async () => {
           const [, ilk, arg2] = eventTx.topics;
           const eventRawData = eventTx.data;
-          this.dataStore.addBlock(eventTx.blockNumber);
+          await this.dataStore.addBlock(eventTx.blockNumber);
 
           switch (event) {
             case FunctionSigs.fold: {

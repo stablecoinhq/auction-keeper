@@ -1,38 +1,19 @@
 import { DataSource } from "typeorm";
-import { Block } from "./entity/block.entity";
-import { Vault } from "./entity/vault.entity";
-import { BlockRepository } from "./repository/block.repository";
-import { VaultRepository } from "./repository/vault.repository";
-import { VaultCollection, Vault as VaultInterface } from "../vault-collection";
+import { Block, BlockRepository, VaultRepository } from "../db";
+import { VaultCollection, Vault as VaultInterface } from "./vault-collection";
 import "reflect-metadata";
 
 /**
  * Class used to persist blockchain data within database
  */
 export class DataStore {
-  private vaultRepository!: VaultRepository;
+  private vaultRepository: VaultRepository;
 
-  private blockRepository!: BlockRepository;
+  private blockRepository: BlockRepository;
 
-  private dataSource: DataSource;
-
-  constructor(database: Database) {
-    this.dataSource = new DataSource({
-      type: "sqlite",
-      database,
-      synchronize: true,
-      logging: false,
-      entities: [Block, Vault],
-      migrations: [],
-      subscribers: [],
-    });
-    this.dataSource
-      .initialize()
-      .then((source) => {
-        this.vaultRepository = new VaultRepository(source);
-        this.blockRepository = new BlockRepository(source);
-      })
-      .catch((e) => console.log(e));
+  constructor(dataSource: DataSource) {
+    this.vaultRepository = new VaultRepository(dataSource);
+    this.blockRepository = new BlockRepository(dataSource);
   }
 
   /**
@@ -73,8 +54,8 @@ export class DataStore {
    * Add block to database
    * @param num blockNumber
    */
-  addBlock(num: number): void {
-    void this.blockRepository.insertBlock(num);
+  addBlock(num: number): Promise<void> {
+    return this.blockRepository.insertBlock(num);
   }
 
   /**
@@ -83,18 +64,4 @@ export class DataStore {
   async getLatestBlock(): Promise<Block | undefined> {
     return this.blockRepository.getLatestBlock();
   }
-}
-
-/**
- * Where to store database
- */
-export enum Database {
-  /**
-   * Within memory
-   */
-  memory = ":memory:",
-  /**
-   * On a file
-   */
-  file = "database/database.sqlite",
 }

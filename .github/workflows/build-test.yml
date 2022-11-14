@@ -16,6 +16,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          submodules: true
       - name: Setup Node 16.x
         uses: actions/setup-node@v3
         with:
@@ -24,7 +26,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
       - name: Build
-        run: npm run build
+        run: npm run build-ci
       - name: eslint
         run: npm run eslint
       - name: Test core package

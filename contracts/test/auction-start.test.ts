@@ -7,6 +7,8 @@ import {
   Dog,
   Vow,
   Vat__factory,
+  createDataSource,
+  Database,
 } from "@auction-keeper/core";
 import { BigNumber } from "ethers";
 import {
@@ -15,7 +17,7 @@ import {
   signer,
   forkNetwork,
   sleep,
-} from "../src/common";
+} from "./util";
 
 require("dotenv").config();
 
@@ -47,13 +49,14 @@ function load() {
 describe("auction keeper", () => {
   describe("Surplus auction", () => {
     beforeEach(async () => {
-      await forkNetwork(9656038);
+      await forkNetwork("mainnet", 9656038);
     });
 
     it("Should start surplus auction", async () => {
       const { vow, vatContract, vowContract } = load();
       void vow.start();
       const flapperAddress = await vow.flapperAddress();
+      console.log(`flapperAddress ${flapperAddress}`);
       const flapper = Flapper__factory.connect(flapperAddress, signer);
       const before = await flapper.kicks();
       await sleep(10000);
@@ -76,7 +79,7 @@ describe("auction keeper", () => {
   // When the surplus dai becomes 0, the debt auction will start
   describe("Debt auction start", () => {
     beforeEach(async () => {
-      await forkNetwork(9702725);
+      await forkNetwork("mainnet", 9702725);
     });
     it("Should start debt auction", async () => {
       const { vow, vatContract } = load();
@@ -95,16 +98,17 @@ describe("auction keeper", () => {
 
   describe("Collateral auction", () => {
     beforeEach(async () => {
-      await forkNetwork(12317309);
+      await forkNetwork("mainnet", 12317309);
     });
 
     it("Should start collateral auction", async () => {
+      const dataSource = await createDataSource(Database.memory);
       const dog = new Dog({
         dogAddress: "0x135954d155898D42C90D2a57824C690e0c7BEf1B",
         signer,
         fromBlock: 12316454,
         toBlock: 12317309,
-        dataStoreMode: "memory",
+        dataSource,
       });
       const [{ address }] = await dog.getClipAddresses([
         "0x4c494e4b2d410000000000000000000000000000000000000000000000000000",
