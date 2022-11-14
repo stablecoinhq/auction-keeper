@@ -161,19 +161,20 @@ export class Chief extends BaseService {
         this._processEvent(eventTx, async () => {
           await this.dataStore.addBlock(eventTx.blockNumber);
           switch (functionSig) {
-            // Free
+            // Free (Unvoting)
             // You have to run through all the spell addresses in order to find out
             // who is the hat.
             case FunctionSigs.free:
-              this.logger.info(`Address ${eventTx.address} freed some votes`);
+              this.logger.info("Some votes were unvoted, checking");
               await this._checkAllAddresses();
               break;
+            // Lock (Voting)
             // Get the value of msg.sender
             // Then lookup who the user is voting for
             case FunctionSigs.lock: {
-              this.logger.info(`Address ${eventTx.address} added some votes`);
-              // const slate = await this.chief.votes(eventTx.address);
-              // await this._checkAddressCanBeLifted(slate);
+              this.logger.info("Some votes were added, cheking");
+              const slate = await this.chief.votes(eventTx.address);
+              await this._checkAddressCanBeLifted(slate);
               break;
             }
             // vote
@@ -184,7 +185,7 @@ export class Chief extends BaseService {
               this.logger.info(
                 `Address ${eventTx.address} voted on slate ${slate}`
               );
-              // await this._checkAddressCanBeLifted(slate);
+              await this._checkAddressCanBeLifted(slate);
               break;
             }
 
@@ -233,7 +234,8 @@ export class Chief extends BaseService {
     const eventFilter = this.chief.filters["Etch(bytes32)"]();
     this.chief.on(eventFilter, (slate, eventTx) => {
       this._processEvent(eventTx, async () => {
-        // await this._checkAddressCanBeLifted(slate);
+        this.logger.info(`Slate modified: ${slate}`);
+        await this._checkAddressCanBeLifted(slate);
       });
     });
   }
