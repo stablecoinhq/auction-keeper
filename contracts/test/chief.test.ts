@@ -93,7 +93,7 @@ describe("Chief keeper", () => {
   });
 
   describe("Keeper", () => {
-    it("Should lift and schedule spell", async () => {
+    it("Should lift and schedule spell, lock then vote", async () => {
       const {
         myAccount,
         chief,
@@ -104,7 +104,6 @@ describe("Chief keeper", () => {
       } = await loadFixture(prepare);
       const currentHat = await chief.hat();
       const hatApproval = await chief.approvals(currentHat);
-      console.log(`Hat approval ${hatApproval}`);
       const keeper = new Chief({
         chiefAddress: chief.address,
         pauseAddress,
@@ -133,6 +132,116 @@ describe("Chief keeper", () => {
       const now = BigNumber.from("1668389125");
       expect(hatAfter).eq(spell.address);
       expect(nextCastTime.gte(now)).eq(true);
+      keeper.stop();
+    });
+
+    it("Should lift and schedule spell, vote then lock", async () => {
+      const {
+        myAccount,
+        chief,
+        governanceToken,
+        spell,
+        pauseAddress,
+        dataSource,
+      } = await loadFixture(prepare);
+      const currentHat = await chief.hat();
+      const hatApproval = await chief.approvals(currentHat);
+      const keeper = new Chief({
+        chiefAddress: chief.address,
+        pauseAddress,
+        signer,
+        fromBlock: BLOCK_NUMBER,
+        toBlock: "latest",
+        dataSource,
+      });
+      await keeper.start();
+      await chief.connect(myAccount)["vote(address[])"]([spell.address]);
+
+      const deposits = await chief.deposits(myAccount.address);
+      if (hatApproval.gt(deposits)) {
+        const balance = await governanceToken.balanceOf(myAccount.address);
+        const amountOfVoteNeeded = hatApproval.add(1);
+        const amountToVote = amountOfVoteNeeded.gte(deposits.add(balance))
+          ? deposits.add(balance)
+          : amountOfVoteNeeded.sub(deposits);
+        if (amountToVote.gt(0)) {
+          await chief.connect(myAccount).lock(amountToVote);
+        }
+      }
+
+      await sleep(10000);
+      const nextCastTime = await spell.nextCastTime();
+      const hatAfter = await chief.hat();
+      const now = BigNumber.from("1668389125");
+      expect(hatAfter).eq(spell.address);
+      expect(nextCastTime.gte(now)).eq(true);
+      keeper.stop();
+    });
+
+    it("Should do nothing when the spell was voted with exact amount", async () => {
+      const {
+        myAccount,
+        chief,
+        governanceToken,
+        spell,
+        pauseAddress,
+        dataSource,
+      } = await loadFixture(prepare);
+      const currentHat = await chief.hat();
+      const hatApproval = await chief.approvals(currentHat);
+      const keeper = new Chief({
+        chiefAddress: chief.address,
+        pauseAddress,
+        signer,
+        fromBlock: BLOCK_NUMBER,
+        toBlock: "latest",
+        dataSource,
+      });
+      await keeper.start();
+      const deposits = await chief.deposits(myAccount.address);
+      if (hatApproval.gt(deposits)) {
+        const balance = await governanceToken.balanceOf(myAccount.address);
+        const amountOfVoteNeeded = hatApproval;
+        const amountToVote = amountOfVoteNeeded.gte(deposits.add(balance))
+          ? deposits.add(balance)
+          : amountOfVoteNeeded.sub(deposits);
+        if (amountToVote.gt(0)) {
+          await chief.connect(myAccount).lock(amountToVote);
+        }
+      }
+
+      await chief.connect(myAccount)["vote(address[])"]([spell.address]);
+      await sleep(10000);
+      const eta = await spell.eta();
+      const hatAfter = await chief.hat();
+      expect(hatAfter).eq(currentHat);
+      expect(eta.eq(0)).eq(true);
+      keeper.stop();
+    });
+
+    // Do nothing when not enough votes
+    it("Should do nothing when there's not enough votes", async () => {
+      const { myAccount, chief, spell, pauseAddress, dataSource } =
+        await loadFixture(prepare);
+      const currentHat = await chief.hat();
+      const keeper = new Chief({
+        chiefAddress: chief.address,
+        pauseAddress,
+        signer,
+        fromBlock: BLOCK_NUMBER,
+        toBlock: "latest",
+        dataSource,
+      });
+      await keeper.start();
+      const amountToVote = BigNumber.from(100).mul(ONE);
+      await chief.connect(myAccount).lock(amountToVote);
+
+      await chief.connect(myAccount)["vote(address[])"]([spell.address]);
+      await sleep(10000);
+      const eta = await spell.eta();
+      const hatAfter = await chief.hat();
+      expect(hatAfter).eq(currentHat);
+      expect(eta.eq(0)).eq(true);
       keeper.stop();
     });
   });
