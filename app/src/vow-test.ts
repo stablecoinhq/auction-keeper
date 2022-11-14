@@ -1,4 +1,10 @@
-import { Vow, Wallet, WebSocketProvider, loadConfig } from "@auction-keeper/core";
+import {
+  Vow,
+  Wallet,
+  WebSocketProvider,
+  loadConfig,
+  ChainLog,
+} from "@auction-keeper/core";
 import { getEnvs } from "./config";
 
 loadConfig();
@@ -16,10 +22,12 @@ async function main() {
 
   const provider = new WebSocketProvider(envs.RPC_HOST);
   const signer = Wallet.fromMnemonic(envs.MNEMONIC).connect(provider);
-
+  const chainlog = new ChainLog({ address: envs.CHAINLOG_ADDRESS, provider });
+  const vowAddress = await chainlog.getAddressOf("MCD_VOW");
+  const vatAddress = await chainlog.getAddressOf("MCD_VAT");
   const vow = new Vow({
-    vowAddress: envs.VOW_ADDRESS,
-    vatAddress: process.env.VAT_ADDRESS!,
+    vowAddress,
+    vatAddress,
     signer,
   });
 

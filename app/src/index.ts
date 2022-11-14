@@ -12,6 +12,7 @@ import {
   Chief,
   createDataSource,
   Database,
+  ChainLog,
 } from "@auction-keeper/core";
 import { getEnvs } from "./config";
 
@@ -20,7 +21,7 @@ loadConfig();
 const logger = getLogger();
 
 process.on("SIGINT", () => {
-  logger.info("\nGracefully shutting down from SIGINT (Ctrl-C)");
+  logger.info("Gracefully shutting down from SIGINT (Ctrl-C)");
   // some other closing procedures go here
   process.exit(0);
 });
@@ -32,38 +33,45 @@ async function main() {
   const provider = new WebSocketProvider(envs.RPC_HOST);
   const dataSource = await createDataSource(Database.file);
   const signer = Wallet.fromMnemonic(envs.MNEMONIC).connect(provider);
+  const chainlog = new ChainLog({ address: envs.CHAINLOG_ADDRESS, provider });
+
+  const dogAddress = await chainlog.getAddressOf("MCD_DOG");
+  const vowAddress = await chainlog.getAddressOf("MCD_VOW");
+  const vatAddress = await chainlog.getAddressOf("MCD_VAT");
+  const chiefAddress = await chainlog.getAddressOf("MCD_ADM");
+  const pauseAddress = await chainlog.getAddressOf("MCD_PAUSE");
+  const flapperAddress = await chainlog.getAddressOf("MCD_FLAP");
+  const flopperAddress = await chainlog.getAddressOf("MCD_FLOP");
+
   const dog = new Dog({
-    dogAddress: envs.DOG_ADDRESS,
+    dogAddress,
     signer,
     fromBlock: envs.FROM_BLOCK,
     toBlock: envs.TO_BLOCK,
     dataSource,
   });
-  const vatAddress = await dog.getVatAddress();
 
   const vow = new Vow({
-    vowAddress: envs.VOW_ADDRESS,
+    vowAddress,
     vatAddress,
     signer,
   });
 
   const chief = new Chief({
-    chiefAddress: envs.CHIEF_ADDRESS,
-    pauseAddress: envs.DS_PAUSE_ADDRESS,
+    chiefAddress,
+    pauseAddress,
     fromBlock: envs.FROM_BLOCK,
     toBlock: envs.TO_BLOCK,
     signer,
-    dataSource
+    dataSource,
   });
 
-  const flapperAddress = await vow.flapperAddress();
   const surplusAuction = new Auction({
     auctionType: "surplus",
     auctionAddress: flapperAddress,
     signer,
   });
 
-  const flopperAddress = await vow.flopperAddress();
   const debtAuction = new Auction({
     auctionType: "debt",
     auctionAddress: flopperAddress,
@@ -75,8 +83,8 @@ async function main() {
   logger.info(
     JSON.stringify(
       {
-        DOG_ADDRESS: envs.DOG_ADDRESS,
-        VOW_ADDRESS: envs.VOW_ADDRESS,
+        DOG_ADDRESS: dogAddress,
+        VOW_ADDRESS: vowAddress,
         SIGNER_ADDRESS: signer.address,
         VAT_ADDRESS: vatAddress,
         CLIP_ADDRESSES: clipAddresses,

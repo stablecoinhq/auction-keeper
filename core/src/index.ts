@@ -17,3 +17,4 @@ export { getLogger } from "./common/logger";
 export { loadConfig } from "./common/config";
 export { Chief, ChiefConfig } from "./chief";
 export { createDataSource, Database } from "./db";
+export { ChainLog, ChainlogConfig, Contract } from "./chainlog";

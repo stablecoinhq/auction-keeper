@@ -176,13 +176,6 @@ export class Dog extends BaseService {
   }
 
   /**
-   * Return contract address of a vat contract
-   */
-  async getVatAddress() {
-    return (await this.vatContract).address;
-  }
-
-  /**
    * Start listening to Dog/Vat contract and handle them accordingly
    * @returns
    */
