@@ -55,28 +55,44 @@ describe("Vault collection", () => {
     });
   });
   describe("vaultEntries", () => {
-    const v = new VaultCollection()
-      .addVault(ETH, createAddress())
-      .addVault(ETH, createAddress())
-      .addVault(DAI, createAddress());
-    const list: Vault[] = [];
-    for (const address of v.vaultEntries()) {
-      list.push(address);
-    }
-    expect(list.length).toBe(3);
-    const eths = list.filter((vault) => vault.ilk === ETH);
-    expect(eths.length).toBe(2);
-    const dais = list.filter((vault) => vault.ilk === DAI);
-    expect(dais.length).toBe(1);
+    it("Should return appropriately", () => {
+      const v = new VaultCollection()
+        .addVault(ETH, createAddress())
+        .addVault(ETH, createAddress())
+        .addVault(DAI, createAddress());
+      const list: Vault[] = [];
+      for (const address of v.vaultEntries()) {
+        list.push(address);
+      }
+      expect(list.length).toBe(3);
+      const eths = list.filter((vault) => vault.ilk === ETH);
+      expect(eths.length).toBe(2);
+      const dais = list.filter((vault) => vault.ilk === DAI);
+      expect(dais.length).toBe(1);
+    });
   });
   describe("push", () => {
-    const v1 = new VaultCollection().addVault(ETH, createAddress());
-    const v2 = new VaultCollection().addVault(DAI, createAddress());
-    const combined = v1.push(v2);
-    const list: Vault[] = [];
-    for (const address of combined.vaultEntries()) {
-      list.push(address);
-    }
-    expect(list.length).toBe(2);
+    it("Should return appropriately", () => {
+      const v1 = new VaultCollection().addVault(ETH, createAddress());
+      const v2 = new VaultCollection().addVault(DAI, createAddress());
+      const combined = v1.push(v2);
+      const list: Vault[] = [];
+      for (const address of combined.vaultEntries()) {
+        list.push(address);
+      }
+      expect(list.length).toBe(2);
+    });
+  });
+  describe("fromVaultCollections", () => {
+    it("Should merge", () => {
+      const v1 = new VaultCollection().addVault(ETH, createAddress());
+      const v2 = new VaultCollection().addVault(DAI, createAddress());
+      const combined = VaultCollection.fromVaultCollections([v1, v2]);
+      const list: Vault[] = [];
+      for (const address of combined.vaultEntries()) {
+        list.push(address);
+      }
+      expect(list.length).toBe(2);
+    });
   });
 });

@@ -407,7 +407,7 @@ export class Dog extends BaseService {
         dirt: accdirt,
         urns: ls,
       };
-    }, Promise.resolve(base));
+    }, Promise.resolve(base as { Dirt: BigNumber; dirt: BigNumber; urns: string[] }));
 
     return barks.urns.map((address) => ({ ilk, address }));
   }
