@@ -439,7 +439,7 @@ export class Auction extends BaseService {
   }
 
   /**
-   * Bid against an auction.Ï
+   * Bid against an auction.
    * @param auctionInfo Auction info
    */
   protected async bid(

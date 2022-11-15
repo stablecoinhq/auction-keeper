@@ -38,7 +38,7 @@ export type Contract =
   | "MCD_DAI";
 
 export class ChainLog {
-  chainlog: ChainLogContract;
+  private chainlog: ChainLogContract;
 
   constructor(arg: ChainlogConfig) {
     const { address, provider } = arg;
